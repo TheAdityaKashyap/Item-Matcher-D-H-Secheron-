@@ -73,7 +73,7 @@
             <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 items-center sticky top-24 z-20">
                 <div class="relative flex-grow w-full">
                     <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
-                    <input type="text" id="search-input" placeholder="Search item, size, brand (e.g., 'Secheron 308L' or '5.00X450')" 
+                    <input type="text" id="search-input" placeholder="Paste full line: e.g. 'Supratherme 6.30X450 5.0KG'" 
                         class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-[#d32f2f] focus:border-[#d32f2f] outline-none transition-all placeholder-gray-500 text-gray-800"
                         autocomplete="off">
                 </div>
@@ -99,11 +99,10 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-gray-100 border-b border-gray-200">
                             <tr>
-                                <th class="p-4 font-bold text-gray-700 text-sm w-40 uppercase tracking-wider">Item Code</th>
+                                <th class="p-4 font-bold text-gray-700 text-sm w-16 text-center">Score</th>
+                                <th class="p-4 font-bold text-gray-700 text-sm w-48 uppercase tracking-wider">Item Code</th>
                                 <th class="p-4 font-bold text-gray-700 text-sm uppercase tracking-wider">Description</th>
                                 <th class="p-4 font-bold text-gray-700 text-sm w-32 uppercase tracking-wider">Location</th>
-                                <th class="p-4 font-bold text-gray-700 text-sm w-40 uppercase tracking-wider">Pack Size</th>
-                                <th class="p-4 font-bold text-gray-700 text-sm w-36 uppercase tracking-wider">Updated</th>
                             </tr>
                         </thead>
                         <tbody id="table-body" class="divide-y divide-gray-100 text-sm text-gray-700">
@@ -182,6 +181,35 @@
 
         // --- Core Functions ---
 
+        // Helper: Extract ALL potential weights from a text string
+        // Returns an array of numbers found near "kg" or just numbers if they look like weights
+        function extractWeightsFromText(str) {
+            if (!str) return [];
+            // This regex finds numbers that are immediately followed by 'k', 'kg', 'kgs', 'lb', 'lbs'
+            // OR just numbers in a specific weight-like format if we want, but let's stick to units for safety in Description
+            // Since Pack Size is ignored, we rely on Description.
+            
+            const weights = [];
+            // Regex for explicit weights: "5.0 kgs", "5kg", "2.5 kg"
+            const regexWithUnits = /(\d+(\.\d+)?)\s*(?:kgs?|kg|lbs?)\b/gi;
+            let match;
+            while ((match = regexWithUnits.exec(str)) !== null) {
+                weights.push(parseFloat(match[1]));
+            }
+            return weights;
+        }
+        
+        // Helper: Parse search term to see if it's a weight query like "5.0kg", "5.", "5.0k"
+        function parseSearchTermWeight(term) {
+            // Regex to strip units and trailing dots/zeros
+            // Matches: 5, 5.0, 5., 5k, 5kg, 5.0kg, 5.0k
+            const weightMatch = term.match(/^(\d+(\.\d+)?)[kK]?[gG]?[sS]?\.?$/);
+            if (weightMatch) {
+                return parseFloat(weightMatch[1]);
+            }
+            return null;
+        }
+
         function handleFile(file) {
             const reader = new FileReader();
 
@@ -197,8 +225,14 @@
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
                 if (jsonData.length > 0) {
-                    inventoryData = jsonData;
-                    filteredData = jsonData; // Initialize filtered with all
+                    // Pre-process data to extract weights from Description (since Pack Size is ignored by user)
+                    inventoryData = jsonData.map(item => ({
+                        ...item,
+                        // Scan description for weights
+                        _extractedWeights: extractWeightsFromText(item['Description'])
+                    }));
+                    
+                    filteredData = inventoryData; // Initialize filtered with all
                     showDataUI();
                     renderTable();
                 } else {
@@ -226,28 +260,55 @@
 
         function renderTable(searchTerm = "") {
             tableBody.innerHTML = "";
-            const rawTerms = searchTerm.toLowerCase().split(" ").filter(t => t.length > 0);
+            const rawTerms = searchTerm.toLowerCase().split(/[\s,]+/).filter(t => t.length > 0); 
             
             // Helper: normalize string
             const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9.]/g, "");
 
-            filteredData = inventoryData.filter(item => {
-                if (rawTerms.length === 0) return true;
+            if (rawTerms.length === 0) {
+                filteredData = inventoryData;
+            } else {
+                // Scoring Logic
+                const scoredData = inventoryData.map(item => {
+                    let score = 0;
+                    const description = (item['Description'] || '').toLowerCase();
+                    const itemCode = (item['Item Code'] || '').toLowerCase();
+                    const location = (item['Location'] || '').toLowerCase();
+                    
+                    const originalString = `${itemCode} ${description} ${location}`;
+                    const smartString = normalize(originalString);
 
-                const originalString = `
-                    ${item['Item Code'] || ''} 
-                    ${item['Description'] || ''} 
-                    ${item['Location'] || ''} 
-                    ${item['Pack Size'] || ''}
-                `.toLowerCase();
+                    rawTerms.forEach(term => {
+                        const cleanTerm = normalize(term);
+                        const termWeight = parseSearchTermWeight(term); // Try to parse as weight (e.g. 5.0kg -> 5)
 
-                const smartString = normalize(originalString);
+                        // 1. Text Matching
+                        if (originalString.includes(term)) {
+                            score += 2; 
+                        } else if (cleanTerm.length > 0 && smartString.includes(cleanTerm)) {
+                            score += 1; 
+                        }
 
-                return rawTerms.every(term => {
-                    const cleanTerm = normalize(term);
-                    return originalString.includes(term) || (cleanTerm.length > 0 && smartString.includes(cleanTerm));
+                        // 2. Smart Weight Matching
+                        // If the search term looks like a weight (5.0, 5kg, 5.0k)
+                        if (termWeight !== null && item._extractedWeights.length > 0) {
+                            // Check against all weights found in the description
+                            const matchFound = item._extractedWeights.some(w => Math.abs(w - termWeight) < 0.05);
+                            if (matchFound) {
+                                score += 3; // High bonus for matching weight value
+                            }
+                        }
+                    });
+
+                    return { ...item, _score: score };
                 });
-            });
+
+                // Filter out items with 0 score (no matches)
+                filteredData = scoredData.filter(item => item._score > 0);
+                
+                // Sort by score (Descending)
+                filteredData.sort((a, b) => b._score - a._score);
+            }
 
             resultCount.textContent = filteredData.length;
 
@@ -258,16 +319,18 @@
                 emptyState.classList.add('hidden');
             }
 
-            // Render Rows (Limit to 100 for performance if query is empty)
-            const displayLimit = searchTerm === "" ? 100 : 500;
+            // Render Rows (Limit to 100 for performance)
+            const displayLimit = 100;
             
             filteredData.slice(0, displayLimit).forEach(item => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-red-50 transition-colors group border-b border-gray-100 last:border-0";
                 
                 const itemCode = item['Item Code'] || '-';
+                const score = item._score ? `<span class="bg-red-100 text-[#d32f2f] px-2 py-0.5 rounded-full text-xs font-bold">${item._score}</span>` : '-';
                 
                 tr.innerHTML = `
+                    <td class="p-4 text-center">${score}</td>
                     <td class="p-4">
                         <div class="flex items-center gap-2">
                             <span class="font-mono text-xs font-bold text-[#d32f2f] bg-red-50 px-2 py-1 rounded">${itemCode}</span>
@@ -282,8 +345,6 @@
                             ${item['Location'] || '-'}
                         </span>
                     </td>
-                    <td class="p-4 text-gray-600">${item['Pack Size'] || '-'}</td>
-                    <td class="p-4 text-gray-400 text-xs">${item['Date updated'] || '-'}</td>
                 `;
                 tableBody.appendChild(tr);
             });
@@ -296,7 +357,15 @@
                 alert("No data to export!");
                 return;
             }
-            const worksheet = XLSX.utils.json_to_sheet(filteredData);
+            // Remove the internal properties before exporting
+            // Also restrict to just the relevant columns as requested
+            const cleanData = filteredData.map(item => ({
+                "Item Code": item['Item Code'],
+                "Description": item['Description'],
+                "Location": item['Location']
+            }));
+            
+            const worksheet = XLSX.utils.json_to_sheet(cleanData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "SearchResults");
             XLSX.writeFile(workbook, "Dayita_SearchResults.xlsx");

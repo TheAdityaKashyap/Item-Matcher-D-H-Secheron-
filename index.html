@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dayita - Item Matcher</title>
+    <title>Dayita - Advanced Algorithm</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- SheetJS for reading Excel/CSV files -->
@@ -26,7 +26,7 @@
         .ignored-term {
             text-decoration: line-through;
             color: #9ca3af; /* Gray-400 */
-            opacity: 0.7;
+            opacity: 0.6;
         }
         .matched-term {
             color: #166534; /* Green-800 */
@@ -34,6 +34,22 @@
             font-weight: 700;
             padding: 0 4px;
             border-radius: 4px;
+        }
+        .dim-term {
+            color: #1d4ed8; /* Blue-700 */
+            background-color: #dbeafe; /* Blue-100 */
+            font-weight: 700;
+            padding: 0 4px;
+            border-radius: 4px;
+            border: 1px solid #93c5fd;
+        }
+        .fuzzy-term {
+            color: #ea580c; /* Orange-600 */
+            background-color: #ffedd5; /* Orange-100 */
+            font-weight: 700;
+            padding: 0 4px;
+            border-radius: 4px;
+            border-bottom: 2px dotted #f97316;
         }
         /* Simple toast animation */
         @keyframes fade-in-out {
@@ -58,10 +74,16 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight uppercase">Dayita</h1>
-                    <p class="text-xs text-red-100 font-medium tracking-wide">Item Matcher for D & H Secheron</p>
+                    <p class="text-xs text-red-100 font-medium tracking-wide">Deep Match Algorithm</p>
                 </div>
             </div>
-            <div class="text-sm opacity-90 hidden sm:block font-medium">Internal Inventory Tool</div>
+            <div class="flex items-center gap-4">
+                 <!-- Memory Indicator -->
+                 <div id="memory-badge" class="hidden px-3 py-1 bg-red-800 rounded-full text-xs font-medium flex items-center gap-2">
+                    <i data-lucide="save" class="w-3 h-3"></i> Database Ready
+                </div>
+                <div class="text-sm opacity-90 hidden sm:block font-medium">D & H Secheron</div>
+            </div>
         </div>
     </header>
 
@@ -75,7 +97,7 @@
                 </div>
                 <div>
                     <h2 class="text-xl font-bold text-gray-800">Upload Master Inventory</h2>
-                    <p class="text-gray-500 mt-2 max-w-md mx-auto">Drag and drop your <strong>.xlsx</strong> or <strong>.csv</strong> file here to begin searching.</p>
+                    <p class="text-gray-500 mt-2 max-w-md mx-auto">Drag and drop your <strong>.xlsx</strong> or <strong>.csv</strong> file here to begin.</p>
                 </div>
                 
                 <input type="file" id="file-input" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" />
@@ -89,39 +111,50 @@
         <!-- Search & Data Section (Hidden initially) -->
         <div id="data-section" class="hidden space-y-6">
             
-            <!-- Search Bar -->
+            <!-- Search Bar Area -->
             <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col items-start sticky top-24 z-20">
                 <div class="flex flex-col md:flex-row gap-4 items-center w-full">
                     <div class="relative flex-grow w-full">
                         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
-                        <input type="text" id="search-input" placeholder="Paste full query: e.g. '3.50 KG 715 Supratherme 3.20X350'" 
-                            class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-[#d32f2f] focus:border-[#d32f2f] outline-none transition-all placeholder-gray-500 text-gray-800"
+                        <input type="text" id="search-input" placeholder="Enter messy query (e.g., '3.15 350 Supratherm 5kg')" 
+                            class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-[#d32f2f] focus:border-[#d32f2f] outline-none transition-all placeholder-gray-500 text-gray-800 shadow-sm font-medium text-lg"
                             autocomplete="off">
                     </div>
                     
-                    <div class="flex items-center gap-3 w-full md:w-auto flex-wrap md:flex-nowrap">
-                        <div class="px-4 py-2 bg-gray-100 rounded border border-gray-200 text-sm text-gray-600 font-semibold whitespace-nowrap">
+                    <div class="flex items-center gap-2 w-full md:w-auto flex-wrap md:flex-nowrap">
+                        <div class="px-4 py-3 bg-gray-100 rounded border border-gray-200 text-sm text-gray-600 font-semibold whitespace-nowrap">
                             <span id="result-count" class="text-[#d32f2f]">0</span> Matches
                         </div>
                         
-                        <button onclick="downloadResults()" class="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-black text-white text-sm font-semibold rounded transition-colors whitespace-nowrap shadow-sm">
-                            <i data-lucide="download" class="w-4 h-4"></i> Export Excel
+                        <button onclick="downloadResults()" class="p-3 bg-gray-800 hover:bg-black text-white rounded transition-colors shadow-sm" title="Export Excel">
+                            <i data-lucide="download" class="w-5 h-5"></i>
                         </button>
 
-                        <button onclick="resetApp()" class="px-5 py-2.5 text-[#d32f2f] border border-[#d32f2f] hover:bg-red-50 text-sm font-semibold rounded transition-colors whitespace-nowrap">
-                            Reset
+                        <button onclick="clearStorageAndReset()" class="p-3 text-[#d32f2f] border border-[#d32f2f] hover:bg-red-50 rounded transition-colors" title="Clear Data">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
                         </button>
                     </div>
                 </div>
 
+                <!-- Recent History -->
+                <div id="history-container" class="w-full mt-3 flex flex-wrap gap-2 hidden">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wide self-center mr-1">Recent:</span>
+                    <!-- Chips injected here -->
+                </div>
+
                 <!-- Query Analysis Box (Dynamic) -->
                 <div id="analysis-container" class="w-full mt-4 hidden">
-                    <div class="analysis-box bg-gray-50 border border-gray-200 rounded p-3 text-sm">
-                        <div class="flex items-center gap-2 mb-1 text-xs font-bold text-gray-500 uppercase tracking-wide">
-                            <i data-lucide="scan-line" class="w-3 h-3"></i> Query Analysis (Top Result Match)
+                    <div class="analysis-box bg-gray-50 border border-gray-200 rounded p-3 text-sm shadow-sm">
+                        <div class="flex items-center gap-2 mb-2 text-xs font-bold text-gray-500 uppercase tracking-wide">
+                            <i data-lucide="scan-eye" class="w-3 h-3"></i> Smart Analysis
                         </div>
-                        <div id="query-feedback" class="text-base leading-relaxed">
+                        <div id="query-feedback" class="text-base leading-relaxed text-gray-700">
                             <!-- Feedback injected here -->
+                        </div>
+                        <div class="mt-2 text-xs text-gray-400 flex gap-3">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-100 border border-blue-300 rounded-full"></span> Dimension Match</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-green-100 rounded-full"></span> Exact Match</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-orange-100 rounded-full"></span> Typo/Fuzzy</span>
                         </div>
                     </div>
                 </div>
@@ -130,10 +163,10 @@
             <!-- Results Table -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse" id="results-table">
                         <thead class="bg-gray-100 border-b border-gray-200">
                             <tr>
-                                <th class="p-4 font-bold text-gray-700 text-sm w-16 text-center">Score</th>
+                                <th class="p-4 font-bold text-gray-700 text-sm w-20 text-center">Score</th>
                                 <th class="p-4 font-bold text-gray-700 text-sm w-48 uppercase tracking-wider">Item Code</th>
                                 <th class="p-4 font-bold text-gray-700 text-sm uppercase tracking-wider">Description</th>
                                 <th class="p-4 font-bold text-gray-700 text-sm w-32 uppercase tracking-wider">Location</th>
@@ -148,8 +181,8 @@
                 <!-- Empty State -->
                 <div id="empty-state" class="hidden p-16 text-center text-gray-500">
                     <i data-lucide="package-search" class="w-16 h-16 mx-auto mb-4 text-gray-300"></i>
-                    <p class="text-lg font-medium">No inventory items found.</p>
-                    <p class="text-sm">Try adjusting your search terms.</p>
+                    <p class="text-lg font-medium">No items found.</p>
+                    <p class="text-sm">Try adjusting your spelling or dimensions.</p>
                 </div>
             </div>
         </div>
@@ -159,17 +192,12 @@
     <!-- Copy Toast Notification -->
     <div id="toast-container" class="fixed bottom-6 right-6 z-50 pointer-events-none"></div>
 
-    <!-- Footer -->
-    <footer class="text-center py-6 text-xs text-gray-400">
-        &copy; <span id="year"></span> Dayita Inventory System. Designed for D & H Secheron.
-    </footer>
-
     <script>
-        document.getElementById('year').textContent = new Date().getFullYear();
-
         // --- State Management ---
         let inventoryData = [];
-        let filteredData = []; // Store currently visible data for export
+        let filteredData = []; 
+        let recentSearches = [];
+
         const uploadSection = document.getElementById('upload-section');
         const dataSection = document.getElementById('data-section');
         const fileInput = document.getElementById('file-input');
@@ -180,9 +208,14 @@
         const toastContainer = document.getElementById('toast-container');
         const analysisContainer = document.getElementById('analysis-container');
         const queryFeedback = document.getElementById('query-feedback');
+        const memoryBadge = document.getElementById('memory-badge');
+        const historyContainer = document.getElementById('history-container');
 
-        // --- Icon Setup ---
-        lucide.createIcons();
+        // --- Initialization ---
+        window.addEventListener('load', () => {
+            loadFromStorage();
+            lucide.createIcons();
+        });
 
         // --- Event Listeners ---
         
@@ -214,32 +247,78 @@
         searchInput.addEventListener('input', (e) => {
             renderTable(e.target.value);
         });
+        
+        // History Saving
+        searchInput.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') {
+                addToHistory(e.target.value);
+            }
+        });
 
-        // --- Core Functions ---
+        // --- ADVANCED ALGORITHM: HELPER FUNCTIONS ---
 
-        // Helper: Extract ALL potential weights from a text string
-        function extractWeightsFromText(str) {
+        // 1. Levenshtein Distance (Typo Tolerance)
+        function levenshtein(a, b) {
+            if (a.length === 0) return b.length;
+            if (b.length === 0) return a.length;
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        // 2. Dimension Extractor (The Core Logic for Welding Rods)
+        function extractDimensions(str) {
+            if (!str) return [];
+            const text = str.toLowerCase();
+            const dimensions = [];
+            
+            // Pattern A: "3.15 x 350", "3.15x350", "3.20*350"
+            // Captures: [Group 1: Diameter] [Group 2: Length]
+            const dimRegex = /(\d+\.?\d*)\s*[xX*]\s*(\d+)/g;
+            let match;
+            while ((match = dimRegex.exec(text)) !== null) {
+                dimensions.push({ type: 'rod', d1: parseFloat(match[1]), d2: parseFloat(match[2]), raw: match[0] });
+            }
+
+            // Pattern B: "1.60 mm", "1.6mm", "4.0 mm"
+            const mmRegex = /(\d+\.?\d*)\s*mm\b/g;
+            while ((match = mmRegex.exec(text)) !== null) {
+                // Avoid duplicates if already caught by Pattern A (Pattern A is more specific)
+                const val = parseFloat(match[1]);
+                // Heuristic: If we already have a dimension starting with this val, assume Pattern A caught it
+                if(!dimensions.some(d => d.d1 === val)) {
+                     dimensions.push({ type: 'single', d1: val, raw: match[0] });
+                }
+            }
+            return dimensions;
+        }
+
+        // 3. Weight Extractor
+        function extractWeights(str) {
             if (!str) return [];
             const weights = [];
-            const regexWithUnits = /(\d+(\.\d+)?)\s*(?:kgs?|kg|lbs?)\b/gi;
+            const regex = /(\d+(\.\d+)?)\s*(?:kgs?|kg|lbs?)\b/gi;
             let match;
-            while ((match = regexWithUnits.exec(str)) !== null) {
+            while ((match = regex.exec(str)) !== null) {
                 weights.push(parseFloat(match[1]));
             }
             return weights;
         }
-        
-        // Helper: Parse search term to see if it's a weight query
-        function parseSearchTermWeight(term) {
-            const weightMatch = term.match(/^(\d+(\.\d+)?)[kK]?[gG]?[sS]?\.?$/);
-            if (weightMatch) {
-                return parseFloat(weightMatch[1]);
-            }
-            return null;
-        }
 
-        // Helper: Normalize string
         const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9.]/g, "");
+
+
+        // --- File Handling ---
 
         function handleFile(file) {
             const reader = new FileReader();
@@ -247,26 +326,76 @@
             reader.onload = (e) => {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
                 if (jsonData.length > 0) {
-                    inventoryData = jsonData.map(item => ({
-                        ...item,
-                        _extractedWeights: extractWeightsFromText(item['Description'])
-                    }));
+                    // Pre-calculate expensive things
+                    inventoryData = jsonData.map(item => {
+                        const fullText = `${item['Item Code']} ${item['Description']} ${item['Location']}`;
+                        return {
+                            ...item,
+                            _fullTextNorm: normalize(fullText),
+                            _words: normalize(fullText).split(' '),
+                            _dimensions: extractDimensions(item['Description']), // Extract rod sizes
+                            _weights: extractWeights(item['Description'])
+                        };
+                    });
                     
+                    saveToStorage(inventoryData);
                     filteredData = inventoryData;
                     showDataUI();
                     renderTable();
                 } else {
-                    alert("The file appears to be empty or unreadable.");
+                    alert("File is empty.");
                 }
             };
-
             reader.readAsArrayBuffer(file);
+        }
+
+        // --- Persistence ---
+        function saveToStorage(data) {
+            try {
+                localStorage.setItem('dayita_inventory_pro', JSON.stringify(data));
+                memoryBadge.classList.remove('hidden');
+                showToast("Data saved to memory.");
+            } catch (e) {
+                console.error("Storage failed", e);
+                showToast("File too large for auto-save.");
+            }
+        }
+
+        function loadFromStorage() {
+            try {
+                const storedData = localStorage.getItem('dayita_inventory_pro');
+                if (storedData) {
+                    inventoryData = JSON.parse(storedData);
+                    if (inventoryData.length > 0) {
+                        filteredData = inventoryData;
+                        showDataUI();
+                        renderTable();
+                        memoryBadge.classList.remove('hidden');
+                        showToast("Database loaded.");
+                    }
+                }
+                const storedHistory = localStorage.getItem('dayita_history');
+                if(storedHistory) {
+                    recentSearches = JSON.parse(storedHistory);
+                    renderHistory();
+                }
+            } catch (e) {
+                console.error("Load failed", e);
+            }
+        }
+
+        function clearStorageAndReset() {
+            if(confirm("Clear database?")) {
+                localStorage.removeItem('dayita_inventory_pro');
+                localStorage.removeItem('dayita_history');
+                recentSearches = [];
+                resetApp();
+            }
         }
 
         function showDataUI() {
@@ -283,40 +412,106 @@
             uploadSection.classList.remove('hidden');
             dataSection.classList.add('hidden');
             analysisContainer.classList.add('hidden');
+            memoryBadge.classList.add('hidden');
         }
 
+        // --- History Logic ---
+        function addToHistory(term) {
+            if(!term || term.trim().length < 2) return;
+            const clean = term.trim();
+            recentSearches = recentSearches.filter(s => s !== clean);
+            recentSearches.unshift(clean);
+            if(recentSearches.length > 5) recentSearches.pop();
+            localStorage.setItem('dayita_history', JSON.stringify(recentSearches));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if(recentSearches.length === 0) {
+                historyContainer.classList.add('hidden');
+                return;
+            }
+            historyContainer.classList.remove('hidden');
+            const label = '<span class="text-xs font-bold text-gray-400 uppercase tracking-wide self-center mr-1">Recent:</span>';
+            const chips = recentSearches.map(term => 
+                `<button onclick="setSearch('${term}')" class="px-3 py-1 bg-gray-200 hover:bg-red-100 hover:text-red-700 text-xs rounded-full transition-colors text-gray-600 font-medium">${term}</button>`
+            ).join('');
+            historyContainer.innerHTML = label + chips;
+        }
+
+        function setSearch(term) {
+            searchInput.value = term;
+            renderTable(term);
+            searchInput.focus();
+        }
+
+        // --- CORE SEARCH ALGORITHM ---
         function renderTable(searchTerm = "") {
             tableBody.innerHTML = "";
-            const rawTerms = searchTerm.toLowerCase().split(/[\s,]+/).filter(t => t.length > 0); 
             
+            // 1. Parse the Query
+            const rawTerms = searchTerm.toLowerCase().split(/[\s,]+/).filter(t => t.length > 0);
+            
+            // Extract special features from Query
+            const queryDimensions = extractDimensions(searchTerm);
+            const queryWeights = extractWeights(searchTerm);
+            
+            // If query is empty, show everything
             if (rawTerms.length === 0) {
                 filteredData = inventoryData;
                 analysisContainer.classList.add('hidden');
             } else {
-                // Scoring Logic
+                // Scoring Phase
                 const scoredData = inventoryData.map(item => {
                     let score = 0;
-                    const description = (item['Description'] || '').toLowerCase();
-                    const itemCode = (item['Item Code'] || '').toLowerCase();
-                    const location = (item['Location'] || '').toLowerCase();
                     
-                    const originalString = `${itemCode} ${description} ${location}`;
-                    const smartString = normalize(originalString);
+                    // A. Dimension Match (Highest Priority: +30)
+                    // Does the item have "3.15 x 350" matching the query "3.15 350"?
+                    if(queryDimensions.length > 0 && item._dimensions.length > 0) {
+                         // Check exact rod matches (d1 and d2)
+                         for(let qd of queryDimensions) {
+                             if(qd.type === 'rod') {
+                                 // Look for exact match in item dimensions
+                                 const hasMatch = item._dimensions.some(id => id.type === 'rod' && id.d1 === qd.d1 && id.d2 === qd.d2);
+                                 if(hasMatch) score += 30;
+                             } else if (qd.type === 'single') {
+                                 const hasMatch = item._dimensions.some(id => id.d1 === qd.d1);
+                                 if(hasMatch) score += 20;
+                             }
+                         }
+                    } else if (queryDimensions.length > 0 && item._dimensions.length === 0) {
+                        // Query asks for dimensions, item has none -> unlikely match
+                        score -= 5;
+                    }
 
+                    // B. Weight Match (+20)
+                    if(queryWeights.length > 0) {
+                        const hasWeightMatch = queryWeights.some(qw => 
+                            item._weights.some(iw => Math.abs(iw - qw) < 0.05)
+                        );
+                        if(hasWeightMatch) score += 20;
+                    }
+
+                    // C. Text & Fuzzy Matching
                     rawTerms.forEach(term => {
                         const cleanTerm = normalize(term);
-                        const termWeight = parseSearchTermWeight(term);
-
-                        if (originalString.includes(term)) {
-                            score += 2; 
-                        } else if (cleanTerm.length > 0 && smartString.includes(cleanTerm)) {
-                            score += 1; 
-                        }
-
-                        if (termWeight !== null && item._extractedWeights.length > 0) {
-                            const matchFound = item._extractedWeights.some(w => Math.abs(w - termWeight) < 0.05);
-                            if (matchFound) {
-                                score += 3;
+                        // Skip terms that were already handled by dimension logic (e.g. "350" or "3.15") to avoid double counting or misses
+                        // Actually, keep them but give lower score, dimension logic handles the "structure" boost
+                        
+                        // Exact match in normalized string
+                        if (item._fullTextNorm.includes(cleanTerm)) {
+                            score += 10;
+                        } 
+                        // Fuzzy Match (only for non-numbers)
+                        else if (isNaN(parseFloat(cleanTerm)) && cleanTerm.length > 3) {
+                            for(let word of item._words) {
+                                if(word.length < 3 || !isNaN(parseFloat(word))) continue;
+                                const dist = levenshtein(cleanTerm, word);
+                                const allowedErrors = cleanTerm.length > 6 ? 2 : 1;
+                                if(dist <= allowedErrors) {
+                                    score += 5;
+                                    break; // Only one fuzzy match per term needed
+                                }
                             }
                         }
                     });
@@ -326,129 +521,119 @@
 
                 filteredData = scoredData.filter(item => item._score > 0);
                 filteredData.sort((a, b) => b._score - a._score);
-                
-                // --- Update Query Analysis ---
-                updateQueryAnalysis(rawTerms, filteredData[0]);
+                updateQueryAnalysis(rawTerms, filteredData[0], queryDimensions);
             }
 
             resultCount.textContent = filteredData.length;
+            if (filteredData.length === 0) emptyState.classList.remove('hidden');
+            else emptyState.classList.add('hidden');
 
-            if (filteredData.length === 0) {
-                emptyState.classList.remove('hidden');
-                return;
-            } else {
-                emptyState.classList.add('hidden');
-            }
-
-            const displayLimit = 100;
+            const displayLimit = 50;
             
-            filteredData.slice(0, displayLimit).forEach(item => {
+            filteredData.slice(0, displayLimit).forEach((item, index) => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-red-50 transition-colors group border-b border-gray-100 last:border-0";
+                tr.className = "hover:bg-red-50 transition-colors group border-b border-gray-100 last:border-0 cursor-pointer";
+                tr.onclick = () => copyToClipboard(item['Item Code']);
                 
                 const itemCode = item['Item Code'] || '-';
                 const score = item._score ? `<span class="bg-red-100 text-[#d32f2f] px-2 py-0.5 rounded-full text-xs font-bold">${item._score}</span>` : '-';
                 
                 tr.innerHTML = `
-                    <td class="p-4 text-center">${score}</td>
-                    <td class="p-4">
-                        <div class="flex items-center gap-2">
-                            <span class="font-mono text-xs font-bold text-[#d32f2f] bg-red-50 px-2 py-1 rounded">${itemCode}</span>
-                            <button onclick="copyToClipboard('${itemCode}')" class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-[#d32f2f] p-1" title="Copy Item Code">
-                                <i data-lucide="copy" class="w-3 h-3"></i>
-                            </button>
-                        </div>
+                    <td class="p-4 text-center align-middle">${score}</td>
+                    <td class="p-4 align-middle">
+                        <span class="font-mono text-sm font-bold text-[#d32f2f] bg-red-50 px-2 py-1 rounded block w-fit">${itemCode}</span>
                     </td>
-                    <td class="p-4 font-medium text-gray-800">${item['Description'] || '-'}</td>
-                    <td class="p-4">
-                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-gray-200 text-gray-700">
+                    <td class="p-4 font-medium text-gray-800 align-middle text-sm leading-relaxed">${item['Description'] || '-'}</td>
+                    <td class="p-4 align-middle">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
                             ${item['Location'] || '-'}
                         </span>
                     </td>
                 `;
                 tableBody.appendChild(tr);
             });
+            
             lucide.createIcons();
         }
 
-        // --- NEW: Query Analysis Function ---
-        function updateQueryAnalysis(terms, topResult) {
+        // --- Visual Analysis ---
+        function updateQueryAnalysis(terms, topResult, queryDims) {
             if (!topResult) {
                 analysisContainer.classList.add('hidden');
                 return;
             }
-
             analysisContainer.classList.remove('hidden');
             
-            const description = (topResult['Description'] || '').toLowerCase();
-            const itemCode = (topResult['Item Code'] || '').toLowerCase();
-            const location = (topResult['Location'] || '').toLowerCase();
-            const fullTargetString = normalize(`${itemCode} ${description} ${location}`);
-            const targetWeights = topResult._extractedWeights || [];
-
+            const fullTargetString = topResult._fullTextNorm;
+            const topWords = topResult._words;
+            const itemDims = topResult._dimensions || [];
             let html = "";
 
             terms.forEach(term => {
                 const cleanTerm = normalize(term);
-                const termWeight = parseSearchTermWeight(term);
-                let isMatch = false;
+                let status = "ignored";
 
-                // Check text match
+                // Check exact
                 if (cleanTerm.length > 0 && fullTargetString.includes(cleanTerm)) {
-                    isMatch = true;
+                    status = "matched";
                 }
                 
-                // Check weight match
-                if (!isMatch && termWeight !== null) {
-                    if (targetWeights.some(w => Math.abs(w - termWeight) < 0.05)) {
-                        isMatch = true;
+                // Check if this term is part of a Matched Dimension
+                // e.g. term "350" matches because item has {d1:3.15, d2:350}
+                if(status !== 'matched' || status === 'matched') { // Prioritize highlighting it as a Dimension
+                     const termVal = parseFloat(cleanTerm);
+                     if(!isNaN(termVal)) {
+                         const isDimMatch = itemDims.some(d => d.d1 === termVal || d.d2 === termVal);
+                         if(isDimMatch) status = "dim";
+                     }
+                }
+
+                // Check Fuzzy
+                if(status === 'ignored' && isNaN(parseFloat(cleanTerm)) && cleanTerm.length > 3) {
+                     for(let word of topWords) {
+                        if(word.length < 3 || !isNaN(parseFloat(word))) continue;
+                        const dist = levenshtein(cleanTerm, word);
+                        const allowedErrors = cleanTerm.length > 6 ? 2 : 1;
+                        if(dist <= allowedErrors) {
+                            status = "fuzzy";
+                            break;
+                        }
                     }
                 }
 
-                if (isMatch) {
-                    html += `<span class="matched-term mx-1">${term}</span>`;
-                } else {
-                    html += `<span class="ignored-term mx-1">${term}</span>`;
-                }
+                if (status === "dim") html += `<span class="dim-term mx-1" title="Matched Dimension">${term}</span>`;
+                else if (status === "matched") html += `<span class="matched-term mx-1">${term}</span>`;
+                else if (status === "fuzzy") html += `<span class="fuzzy-term mx-1" title="Typo detected">${term}</span>`;
+                else html += `<span class="ignored-term mx-1">${term}</span>`;
             });
 
             queryFeedback.innerHTML = html;
         }
 
-        // --- Export Feature ---
         function downloadResults() {
-            if (filteredData.length === 0) {
-                alert("No data to export!");
-                return;
-            }
+            if (filteredData.length === 0) return alert("No data to export!");
             const cleanData = filteredData.map(item => ({
                 "Item Code": item['Item Code'],
                 "Description": item['Description'],
                 "Location": item['Location']
             }));
-            
             const worksheet = XLSX.utils.json_to_sheet(cleanData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "SearchResults");
-            XLSX.writeFile(workbook, "Dayita_SearchResults.xlsx");
+            XLSX.writeFile(workbook, "Dayita_Export.xlsx");
         }
 
         function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                showToast(`Copied: ${text}`);
-            });
+            navigator.clipboard.writeText(text).then(() => showToast(`Copied Code: ${text}`));
         }
-
+        
         function showToast(message) {
             const toast = document.createElement('div');
-            toast.className = "toast bg-gray-900 text-white px-5 py-3 rounded shadow-xl text-sm mb-2 flex items-center gap-2 border-l-4 border-[#d32f2f]";
+            toast.className = "toast bg-gray-900 text-white px-4 py-2 rounded shadow-xl text-sm mb-2 flex items-center gap-2 border-l-4 border-[#d32f2f]";
             toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-400"></i> ${message}`;
             toastContainer.appendChild(toast);
             lucide.createIcons();
-            
-            setTimeout(() => {
-                toast.remove();
-            }, 2000);
+            setTimeout(() => toast.remove(), 2000);
         }
     </script>
 </body>

@@ -15,6 +15,26 @@
             border-color: #dc2626; /* Red-600 */
             background-color: #fef2f2; /* Red-50 */
         }
+        /* Animation for analysis box */
+        @keyframes slide-down {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .analysis-box {
+            animation: slide-down 0.3s ease-out forwards;
+        }
+        .ignored-term {
+            text-decoration: line-through;
+            color: #9ca3af; /* Gray-400 */
+            opacity: 0.7;
+        }
+        .matched-term {
+            color: #166534; /* Green-800 */
+            background-color: #dcfce7; /* Green-100 */
+            font-weight: 700;
+            padding: 0 4px;
+            border-radius: 4px;
+        }
         /* Simple toast animation */
         @keyframes fade-in-out {
             0% { opacity: 0; transform: translateY(20px); }
@@ -70,26 +90,40 @@
         <div id="data-section" class="hidden space-y-6">
             
             <!-- Search Bar -->
-            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 items-center sticky top-24 z-20">
-                <div class="relative flex-grow w-full">
-                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
-                    <input type="text" id="search-input" placeholder="Paste full line: e.g. 'Supratherme 6.30X450 5.0KG'" 
-                        class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-[#d32f2f] focus:border-[#d32f2f] outline-none transition-all placeholder-gray-500 text-gray-800"
-                        autocomplete="off">
-                </div>
-                
-                <div class="flex items-center gap-3 w-full md:w-auto flex-wrap md:flex-nowrap">
-                    <div class="px-4 py-2 bg-gray-100 rounded border border-gray-200 text-sm text-gray-600 font-semibold whitespace-nowrap">
-                        <span id="result-count" class="text-[#d32f2f]">0</span> Matches
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col items-start sticky top-24 z-20">
+                <div class="flex flex-col md:flex-row gap-4 items-center w-full">
+                    <div class="relative flex-grow w-full">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
+                        <input type="text" id="search-input" placeholder="Paste full query: e.g. '3.50 KG 715 Supratherme 3.20X350'" 
+                            class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-[#d32f2f] focus:border-[#d32f2f] outline-none transition-all placeholder-gray-500 text-gray-800"
+                            autocomplete="off">
                     </div>
                     
-                    <button onclick="downloadResults()" class="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-black text-white text-sm font-semibold rounded transition-colors whitespace-nowrap shadow-sm">
-                        <i data-lucide="download" class="w-4 h-4"></i> Export Excel
-                    </button>
+                    <div class="flex items-center gap-3 w-full md:w-auto flex-wrap md:flex-nowrap">
+                        <div class="px-4 py-2 bg-gray-100 rounded border border-gray-200 text-sm text-gray-600 font-semibold whitespace-nowrap">
+                            <span id="result-count" class="text-[#d32f2f]">0</span> Matches
+                        </div>
+                        
+                        <button onclick="downloadResults()" class="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-black text-white text-sm font-semibold rounded transition-colors whitespace-nowrap shadow-sm">
+                            <i data-lucide="download" class="w-4 h-4"></i> Export Excel
+                        </button>
 
-                    <button onclick="resetApp()" class="px-5 py-2.5 text-[#d32f2f] border border-[#d32f2f] hover:bg-red-50 text-sm font-semibold rounded transition-colors whitespace-nowrap">
-                        Reset
-                    </button>
+                        <button onclick="resetApp()" class="px-5 py-2.5 text-[#d32f2f] border border-[#d32f2f] hover:bg-red-50 text-sm font-semibold rounded transition-colors whitespace-nowrap">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Query Analysis Box (Dynamic) -->
+                <div id="analysis-container" class="w-full mt-4 hidden">
+                    <div class="analysis-box bg-gray-50 border border-gray-200 rounded p-3 text-sm">
+                        <div class="flex items-center gap-2 mb-1 text-xs font-bold text-gray-500 uppercase tracking-wide">
+                            <i data-lucide="scan-line" class="w-3 h-3"></i> Query Analysis (Top Result Match)
+                        </div>
+                        <div id="query-feedback" class="text-base leading-relaxed">
+                            <!-- Feedback injected here -->
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -144,6 +178,8 @@
         const resultCount = document.getElementById('result-count');
         const emptyState = document.getElementById('empty-state');
         const toastContainer = document.getElementById('toast-container');
+        const analysisContainer = document.getElementById('analysis-container');
+        const queryFeedback = document.getElementById('query-feedback');
 
         // --- Icon Setup ---
         lucide.createIcons();
@@ -182,15 +218,9 @@
         // --- Core Functions ---
 
         // Helper: Extract ALL potential weights from a text string
-        // Returns an array of numbers found near "kg" or just numbers if they look like weights
         function extractWeightsFromText(str) {
             if (!str) return [];
-            // This regex finds numbers that are immediately followed by 'k', 'kg', 'kgs', 'lb', 'lbs'
-            // OR just numbers in a specific weight-like format if we want, but let's stick to units for safety in Description
-            // Since Pack Size is ignored, we rely on Description.
-            
             const weights = [];
-            // Regex for explicit weights: "5.0 kgs", "5kg", "2.5 kg"
             const regexWithUnits = /(\d+(\.\d+)?)\s*(?:kgs?|kg|lbs?)\b/gi;
             let match;
             while ((match = regexWithUnits.exec(str)) !== null) {
@@ -199,16 +229,17 @@
             return weights;
         }
         
-        // Helper: Parse search term to see if it's a weight query like "5.0kg", "5.", "5.0k"
+        // Helper: Parse search term to see if it's a weight query
         function parseSearchTermWeight(term) {
-            // Regex to strip units and trailing dots/zeros
-            // Matches: 5, 5.0, 5., 5k, 5kg, 5.0kg, 5.0k
             const weightMatch = term.match(/^(\d+(\.\d+)?)[kK]?[gG]?[sS]?\.?$/);
             if (weightMatch) {
                 return parseFloat(weightMatch[1]);
             }
             return null;
         }
+
+        // Helper: Normalize string
+        const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9.]/g, "");
 
         function handleFile(file) {
             const reader = new FileReader();
@@ -217,22 +248,17 @@
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
 
-                // Assuming first sheet is the one we want
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert to JSON
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
                 if (jsonData.length > 0) {
-                    // Pre-process data to extract weights from Description (since Pack Size is ignored by user)
                     inventoryData = jsonData.map(item => ({
                         ...item,
-                        // Scan description for weights
                         _extractedWeights: extractWeightsFromText(item['Description'])
                     }));
                     
-                    filteredData = inventoryData; // Initialize filtered with all
+                    filteredData = inventoryData;
                     showDataUI();
                     renderTable();
                 } else {
@@ -256,17 +282,16 @@
             searchInput.value = '';
             uploadSection.classList.remove('hidden');
             dataSection.classList.add('hidden');
+            analysisContainer.classList.add('hidden');
         }
 
         function renderTable(searchTerm = "") {
             tableBody.innerHTML = "";
             const rawTerms = searchTerm.toLowerCase().split(/[\s,]+/).filter(t => t.length > 0); 
             
-            // Helper: normalize string
-            const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9.]/g, "");
-
             if (rawTerms.length === 0) {
                 filteredData = inventoryData;
+                analysisContainer.classList.add('hidden');
             } else {
                 // Scoring Logic
                 const scoredData = inventoryData.map(item => {
@@ -280,22 +305,18 @@
 
                     rawTerms.forEach(term => {
                         const cleanTerm = normalize(term);
-                        const termWeight = parseSearchTermWeight(term); // Try to parse as weight (e.g. 5.0kg -> 5)
+                        const termWeight = parseSearchTermWeight(term);
 
-                        // 1. Text Matching
                         if (originalString.includes(term)) {
                             score += 2; 
                         } else if (cleanTerm.length > 0 && smartString.includes(cleanTerm)) {
                             score += 1; 
                         }
 
-                        // 2. Smart Weight Matching
-                        // If the search term looks like a weight (5.0, 5kg, 5.0k)
                         if (termWeight !== null && item._extractedWeights.length > 0) {
-                            // Check against all weights found in the description
                             const matchFound = item._extractedWeights.some(w => Math.abs(w - termWeight) < 0.05);
                             if (matchFound) {
-                                score += 3; // High bonus for matching weight value
+                                score += 3;
                             }
                         }
                     });
@@ -303,11 +324,11 @@
                     return { ...item, _score: score };
                 });
 
-                // Filter out items with 0 score (no matches)
                 filteredData = scoredData.filter(item => item._score > 0);
-                
-                // Sort by score (Descending)
                 filteredData.sort((a, b) => b._score - a._score);
+                
+                // --- Update Query Analysis ---
+                updateQueryAnalysis(rawTerms, filteredData[0]);
             }
 
             resultCount.textContent = filteredData.length;
@@ -319,7 +340,6 @@
                 emptyState.classList.add('hidden');
             }
 
-            // Render Rows (Limit to 100 for performance)
             const displayLimit = 100;
             
             filteredData.slice(0, displayLimit).forEach(item => {
@@ -351,14 +371,56 @@
             lucide.createIcons();
         }
 
+        // --- NEW: Query Analysis Function ---
+        function updateQueryAnalysis(terms, topResult) {
+            if (!topResult) {
+                analysisContainer.classList.add('hidden');
+                return;
+            }
+
+            analysisContainer.classList.remove('hidden');
+            
+            const description = (topResult['Description'] || '').toLowerCase();
+            const itemCode = (topResult['Item Code'] || '').toLowerCase();
+            const location = (topResult['Location'] || '').toLowerCase();
+            const fullTargetString = normalize(`${itemCode} ${description} ${location}`);
+            const targetWeights = topResult._extractedWeights || [];
+
+            let html = "";
+
+            terms.forEach(term => {
+                const cleanTerm = normalize(term);
+                const termWeight = parseSearchTermWeight(term);
+                let isMatch = false;
+
+                // Check text match
+                if (cleanTerm.length > 0 && fullTargetString.includes(cleanTerm)) {
+                    isMatch = true;
+                }
+                
+                // Check weight match
+                if (!isMatch && termWeight !== null) {
+                    if (targetWeights.some(w => Math.abs(w - termWeight) < 0.05)) {
+                        isMatch = true;
+                    }
+                }
+
+                if (isMatch) {
+                    html += `<span class="matched-term mx-1">${term}</span>`;
+                } else {
+                    html += `<span class="ignored-term mx-1">${term}</span>`;
+                }
+            });
+
+            queryFeedback.innerHTML = html;
+        }
+
         // --- Export Feature ---
         function downloadResults() {
             if (filteredData.length === 0) {
                 alert("No data to export!");
                 return;
             }
-            // Remove the internal properties before exporting
-            // Also restrict to just the relevant columns as requested
             const cleanData = filteredData.map(item => ({
                 "Item Code": item['Item Code'],
                 "Description": item['Description'],
@@ -371,7 +433,6 @@
             XLSX.writeFile(workbook, "Dayita_SearchResults.xlsx");
         }
 
-        // --- Copy Feature ---
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 showToast(`Copied: ${text}`);
@@ -385,7 +446,6 @@
             toastContainer.appendChild(toast);
             lucide.createIcons();
             
-            // Auto remove after animation ends (2s)
             setTimeout(() => {
                 toast.remove();
             }, 2000);

@@ -1,639 +1,886 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dayita - Advanced Algorithm</title>
-    <!-- Tailwind CSS for styling -->
+    <title>Dayita - Enterprise Inventory</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SheetJS for reading Excel/CSV files -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#111827',
+                            surface: '#1f2937',
+                            border: '#374151',
+                            text: '#f3f4f6',
+                            muted: '#9ca3af'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        .drag-active {
-            border-color: #dc2626; /* Red-600 */
-            background-color: #fef2f2; /* Red-50 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        .dark .custom-scroll::-webkit-scrollbar-thumb { background-color: #4b5563; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        
+        .loader { border: 2px solid #f3f3f3; border-top: 2px solid #dc2626; border-radius: 50%; width: 16px; height: 16px; animation: spin 0.8s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Custom Checkbox */
+        .checkbox-wrapper input:checked + div {
+            background-color: #dc2626;
+            border-color: #dc2626;
         }
-        /* Animation for analysis box */
-        @keyframes slide-down {
-            0% { opacity: 0; transform: translateY(-10px); }
-            100% { opacity: 1; transform: translateY(0); }
+        .checkbox-wrapper input:checked + div svg {
+            opacity: 1;
         }
-        .analysis-box {
-            animation: slide-down 0.3s ease-out forwards;
-        }
-        .ignored-term {
-            text-decoration: line-through;
-            color: #9ca3af; /* Gray-400 */
-            opacity: 0.6;
-        }
-        .matched-term {
-            color: #166534; /* Green-800 */
-            background-color: #dcfce7; /* Green-100 */
-            font-weight: 700;
-            padding: 0 4px;
-            border-radius: 4px;
-        }
-        .dim-term {
-            color: #1d4ed8; /* Blue-700 */
-            background-color: #dbeafe; /* Blue-100 */
-            font-weight: 700;
-            padding: 0 4px;
-            border-radius: 4px;
-            border: 1px solid #93c5fd;
-        }
-        .fuzzy-term {
-            color: #ea580c; /* Orange-600 */
-            background-color: #ffedd5; /* Orange-100 */
-            font-weight: 700;
-            padding: 0 4px;
-            border-radius: 4px;
-            border-bottom: 2px dotted #f97316;
-        }
-        /* Simple toast animation */
-        @keyframes fade-in-out {
-            0% { opacity: 0; transform: translateY(20px); }
-            10% { opacity: 1; transform: translateY(0); }
-            90% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-20px); }
-        }
-        .toast {
-            animation: fade-in-out 2s forwards;
-        }
+
+        /* Analysis Badges */
+        .badge-base { @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mr-1 mb-1 inline-block; }
+        .badge-match { @apply bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800; }
+        .badge-dim   { @apply bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800; }
+        .badge-weight{ @apply bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800; }
+        .badge-pack  { @apply bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800; }
+        .badge-exp   { @apply bg-teal-100 text-teal-700 border border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800; }
+        .badge-skip  { @apply bg-gray-100 text-gray-400 border border-gray-200 line-through decoration-gray-400 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700; }
+        .badge-comp  { @apply bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans text-gray-800 relative">
+<body class="flex flex-col h-screen overflow-hidden bg-gray-50 text-slate-800 dark:bg-dark-bg dark:text-dark-text transition-colors duration-200">
 
-    <!-- Header (D&H Red Theme) -->
-    <header class="bg-[#d32f2f] text-white shadow-md sticky top-0 z-10 border-b-4 border-gray-800">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+    <!-- Navbar -->
+    <header class="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border z-30 shrink-0 transition-colors">
+        <div class="px-6 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="bg-white p-1.5 rounded text-[#d32f2f]">
-                    <i data-lucide="shield-check" class="w-6 h-6"></i>
+                <div class="bg-[#d32f2f] p-1.5 rounded-lg shadow-sm text-white">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
                 </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight uppercase">Dayita</h1>
-                    <p class="text-xs text-red-100 font-medium tracking-wide">Deep Match Algorithm</p>
+                <div class="leading-tight">
+                    <h1 class="text-lg font-bold tracking-tight text-gray-900 dark:text-white uppercase">Dayita</h1>
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400 font-semibold tracking-wider uppercase">Enterprise Inventory System</p>
                 </div>
             </div>
-            <div class="flex items-center gap-4">
-                 <!-- Memory Indicator -->
-                 <div id="memory-badge" class="hidden px-3 py-1 bg-red-800 rounded-full text-xs font-medium flex items-center gap-2">
-                    <i data-lucide="save" class="w-3 h-3"></i> Database Ready
+            
+            <div class="flex items-center gap-3">
+                <!-- Theme Toggle -->
+                <button onclick="toggleTheme()" class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="Toggle Dark Mode">
+                    <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+                    <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+                </button>
+
+                <div id="file-status" class="hidden flex items-center gap-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-full text-xs font-medium border border-green-200 dark:border-green-800/50 shadow-sm transition-all">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span id="item-count-display">0 Items Ready</span>
                 </div>
-                <div class="text-sm opacity-90 hidden sm:block font-medium">D & H Secheron</div>
+                <button onclick="clearAllData()" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Reset Database">
+                    <i data-lucide="power" class="w-5 h-5"></i>
+                </button>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-8">
-
-        <!-- File Upload Section -->
-        <div id="upload-section" class="bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 p-12 text-center transition-all duration-200 hover:border-red-300">
-            <div class="flex flex-col items-center gap-5">
-                <div class="p-5 bg-red-50 rounded-full text-[#d32f2f]">
-                    <i data-lucide="file-spreadsheet" class="w-10 h-10"></i>
-                </div>
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800">Upload Master Inventory</h2>
-                    <p class="text-gray-500 mt-2 max-w-md mx-auto">Drag and drop your <strong>.xlsx</strong> or <strong>.csv</strong> file here to begin.</p>
-                </div>
-                
-                <input type="file" id="file-input" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" />
-                
-                <button onclick="document.getElementById('file-input').click()" class="mt-2 px-8 py-3 bg-[#d32f2f] hover:bg-red-700 text-white font-semibold rounded shadow-sm transition-colors uppercase text-sm tracking-wider">
-                    Select File
-                </button>
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Sidebar -->
+        <aside class="w-72 bg-white dark:bg-dark-surface border-r border-gray-200 dark:border-dark-border flex flex-col z-20 hidden shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] transition-colors" id="sidebar">
+            <div class="p-5 border-b border-gray-100 dark:border-dark-border flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+                <span class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="filter" class="w-3 h-3"></i> Smart Filters
+                </span>
+                <button onclick="resetFilters()" class="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium hover:underline decoration-red-200 underline-offset-2">Clear All</button>
             </div>
-        </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-2 custom-scroll" id="filters-container">
+                <div class="text-center mt-10 text-gray-400 text-sm flex flex-col items-center">
+                    <i data-lucide="filter-x" class="w-8 h-8 mb-2 opacity-50"></i>
+                    No filters available
+                </div>
+            </div>
+        </aside>
 
-        <!-- Search & Data Section (Hidden initially) -->
-        <div id="data-section" class="hidden space-y-6">
+        <!-- Content Area -->
+        <main class="flex-1 flex flex-col bg-gray-50/50 dark:bg-dark-bg relative overflow-hidden transition-colors">
             
-            <!-- Search Bar Area -->
-            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col items-start sticky top-24 z-20">
-                <div class="flex flex-col md:flex-row gap-4 items-center w-full">
-                    <div class="relative flex-grow w-full">
-                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
-                        <input type="text" id="search-input" placeholder="Enter messy query (e.g., '3.15 350 Supratherm 5kg')" 
-                            class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-[#d32f2f] focus:border-[#d32f2f] outline-none transition-all placeholder-gray-500 text-gray-800 shadow-sm font-medium text-lg"
-                            autocomplete="off">
+            <!-- Upload Overlay -->
+            <div id="upload-overlay" class="absolute inset-0 z-40 bg-gray-50/90 dark:bg-dark-bg/90 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
+                <div id="drop-zone" class="bg-white dark:bg-dark-surface w-full max-w-lg rounded-2xl shadow-xl border-2 border-dashed border-gray-200 dark:border-dark-border p-12 text-center transition-all duration-300 hover:border-red-400 dark:hover:border-red-500/50 hover:shadow-2xl hover:-translate-y-1">
+                    <div class="mx-auto w-16 h-16 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+                        <i data-lucide="database" class="w-8 h-8"></i>
                     </div>
-                    
-                    <div class="flex items-center gap-2 w-full md:w-auto flex-wrap md:flex-nowrap">
-                        <div class="px-4 py-3 bg-gray-100 rounded border border-gray-200 text-sm text-gray-600 font-semibold whitespace-nowrap">
-                            <span id="result-count" class="text-[#d32f2f]">0</span> Matches
-                        </div>
-                        
-                        <button onclick="downloadResults()" class="p-3 bg-gray-800 hover:bg-black text-white rounded transition-colors shadow-sm" title="Export Excel">
-                            <i data-lucide="download" class="w-5 h-5"></i>
-                        </button>
-
-                        <button onclick="clearStorageAndReset()" class="p-3 text-[#d32f2f] border border-[#d32f2f] hover:bg-red-50 rounded transition-colors" title="Clear Data">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Recent History -->
-                <div id="history-container" class="w-full mt-3 flex flex-wrap gap-2 hidden">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wide self-center mr-1">Recent:</span>
-                    <!-- Chips injected here -->
-                </div>
-
-                <!-- Query Analysis Box (Dynamic) -->
-                <div id="analysis-container" class="w-full mt-4 hidden">
-                    <div class="analysis-box bg-gray-50 border border-gray-200 rounded p-3 text-sm shadow-sm">
-                        <div class="flex items-center gap-2 mb-2 text-xs font-bold text-gray-500 uppercase tracking-wide">
-                            <i data-lucide="scan-eye" class="w-3 h-3"></i> Smart Analysis
-                        </div>
-                        <div id="query-feedback" class="text-base leading-relaxed text-gray-700">
-                            <!-- Feedback injected here -->
-                        </div>
-                        <div class="mt-2 text-xs text-gray-400 flex gap-3">
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-100 border border-blue-300 rounded-full"></span> Dimension Match</span>
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-green-100 rounded-full"></span> Exact Match</span>
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-orange-100 rounded-full"></span> Typo/Fuzzy</span>
-                        </div>
-                    </div>
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Initialize Master Data</h2>
+                    <p class="text-gray-500 dark:text-gray-400 mb-8 text-sm leading-relaxed">Upload your <strong>Master Inventory</strong> file (.xlsx)<br>to configure the Dayita engine.</p>
+                    <button onclick="document.getElementById('file-input').click()" class="bg-[#d32f2f] hover:bg-red-700 text-white px-8 py-3 rounded-xl font-medium transition-all shadow-lg shadow-red-200 dark:shadow-none active:scale-95 flex items-center gap-2 mx-auto">
+                        <i data-lucide="folder-open" class="w-4 h-4"></i>
+                        Load Master File
+                    </button>
+                    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" class="hidden" />
                 </div>
             </div>
 
-            <!-- Results Table -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse" id="results-table">
-                        <thead class="bg-gray-100 border-b border-gray-200">
-                            <tr>
-                                <th class="p-4 font-bold text-gray-700 text-sm w-20 text-center">Score</th>
-                                <th class="p-4 font-bold text-gray-700 text-sm w-48 uppercase tracking-wider">Item Code</th>
-                                <th class="p-4 font-bold text-gray-700 text-sm uppercase tracking-wider">Description</th>
-                                <th class="p-4 font-bold text-gray-700 text-sm w-32 uppercase tracking-wider">Location</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body" class="divide-y divide-gray-100 text-sm text-gray-700">
-                            <!-- Rows injected here -->
-                        </tbody>
-                    </table>
-                </div>
+            <!-- Application View -->
+            <div id="app-view" class="flex flex-col h-full w-full hidden animate-fade-in">
                 
-                <!-- Empty State -->
-                <div id="empty-state" class="hidden p-16 text-center text-gray-500">
-                    <i data-lucide="package-search" class="w-16 h-16 mx-auto mb-4 text-gray-300"></i>
-                    <p class="text-lg font-medium">No items found.</p>
-                    <p class="text-sm">Try adjusting your spelling or dimensions.</p>
+                <!-- Tab Navigation -->
+                <div class="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border px-6 pt-4 flex gap-6 shrink-0 shadow-sm z-10 transition-colors">
+                    <button onclick="switchTab('search')" id="tab-btn-search" class="pb-3 text-sm font-medium flex items-center gap-2 border-b-2 border-transparent transition-all hover:text-red-600 dark:hover:text-red-400 text-gray-500 dark:text-gray-400">
+                        <i data-lucide="search" class="w-4 h-4"></i> Interactive Search
+                    </button>
+                    <button onclick="switchTab('bulk')" id="tab-btn-bulk" class="pb-3 text-sm font-medium flex items-center gap-2 border-b-2 border-transparent transition-all hover:text-red-600 dark:hover:text-red-400 text-gray-500 dark:text-gray-400">
+                        <i data-lucide="layers" class="w-4 h-4"></i> Bulk Processing
+                    </button>
                 </div>
-            </div>
-        </div>
 
-    </main>
-    
-    <!-- Copy Toast Notification -->
-    <div id="toast-container" class="fixed bottom-6 right-6 z-50 pointer-events-none"></div>
+                <!-- Interactive Search Tab -->
+                <div id="tab-search" class="flex-1 flex flex-col overflow-hidden p-6 gap-6 max-w-7xl mx-auto w-full">
+                    
+                    <!-- Search Header Container -->
+                    <div class="flex flex-col gap-2">
+                        <!-- Search Bar -->
+                        <div class="bg-white dark:bg-dark-surface p-1.5 rounded-xl shadow-sm border border-gray-200 dark:border-dark-border flex items-center focus-within:ring-2 focus-within:ring-red-100 dark:focus-within:ring-red-900/30 focus-within:border-red-400 transition-all">
+                            <div class="pl-4 pr-3 text-gray-400">
+                                <i data-lucide="search" class="w-5 h-5"></i>
+                            </div>
+                            <input type="text" id="search-input" placeholder="Type query... (e.g. '5.0 KG F70S6 1.60X1000')" 
+                                class="flex-1 outline-none text-gray-700 dark:text-gray-200 py-2.5 text-base bg-transparent placeholder-gray-400" autocomplete="off">
+                            <div class="h-8 w-px bg-gray-200 dark:bg-dark-border mx-2"></div>
+                            <div class="pr-4 flex items-center gap-2">
+                                <span class="text-xs font-semibold text-gray-400 uppercase">Matches</span>
+                                <span id="search-count" class="text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-md min-w-[30px] text-center">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Analysis Bar -->
+                        <div id="analysis-bar" class="hidden bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-2.5 flex items-center gap-2 shadow-sm animate-fade-in">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 border-r border-gray-100 dark:border-dark-border">Analysis</span>
+                            <div id="analysis-content" class="flex flex-wrap gap-1 text-xs">
+                                <!-- Pills go here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Table -->
+                    <div class="flex-1 bg-white dark:bg-dark-surface rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200 dark:border-dark-border overflow-hidden flex flex-col transition-colors">
+                        <div class="overflow-y-auto flex-1 custom-scroll">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50/80 dark:bg-gray-800/80 border-b border-gray-200 dark:border-dark-border sticky top-0 z-10 backdrop-blur-sm">
+                                    <tr>
+                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-20 text-center">Score</th>
+                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-48">Item Code</th>
+                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Description</th>
+                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-36">Location</th>
+                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-20 text-center">Copy</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="search-table-body" class="divide-y divide-gray-50 dark:divide-gray-800 text-sm">
+                                    <!-- Rows -->
+                                </tbody>
+                            </table>
+                            
+                            <!-- Empty State -->
+                            <div id="search-empty" class="h-full flex flex-col items-center justify-center text-gray-400 pb-10">
+                                <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-full mb-4 transition-colors">
+                                    <i data-lucide="search-x" class="w-8 h-8 opacity-40"></i>
+                                </div>
+                                <p class="font-medium text-gray-500 dark:text-gray-400">No matches found</p>
+                                <p class="text-xs opacity-60 mt-1">Try adjusting your filters or search terms</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bulk Matcher Tab -->
+                <div id="tab-bulk" class="flex-1 flex flex-col overflow-hidden p-6 gap-6 hidden max-w-7xl mx-auto w-full">
+                    <div class="flex gap-6 h-full items-stretch">
+                        
+                        <!-- Input Section -->
+                        <div class="w-1/3 flex flex-col gap-0 shadow-sm rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface transition-colors">
+                            <div class="bg-gray-50/50 dark:bg-gray-800/50 p-4 border-b border-gray-200 dark:border-dark-border flex justify-between items-center">
+                                <h3 class="font-bold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide flex items-center gap-2">
+                                    <i data-lucide="clipboard-list" class="w-4 h-4 text-gray-400"></i> Query Data
+                                </h3>
+                                <button onclick="document.getElementById('bulk-file-input').click()" class="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                    <i data-lucide="upload" class="w-3 h-3"></i> Upload File
+                                </button>
+                                <input type="file" id="bulk-file-input" accept=".xlsx,.xls,.csv" class="hidden" />
+                            </div>
+                            
+                            <!-- Drop Zone for Query File -->
+                            <div id="bulk-drop-zone" class="flex-1 relative flex flex-col">
+                                <textarea id="bulk-input" class="absolute inset-0 w-full h-full p-5 resize-none outline-none text-xs font-mono leading-relaxed text-gray-600 dark:text-gray-300 bg-transparent placeholder-gray-300 dark:placeholder-gray-600 focus:bg-gray-50/30 dark:focus:bg-gray-800/30 transition-colors z-10" 
+                                    placeholder="Paste lines here OR Drop your Order File...&#10;&#10;04 X 3.50 KG Supratherme 3.20X350 VP&#10;Secheron 308L 4.00mm REG"></textarea>
+                                
+                                <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity bg-white/90 dark:bg-dark-surface/90 backdrop-blur-sm z-20" id="bulk-drop-overlay">
+                                    <div class="text-center text-blue-500">
+                                        <i data-lucide="file-plus" class="w-10 h-10 mx-auto mb-2"></i>
+                                        <p class="font-bold">Drop Query File</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 border-t border-gray-200 dark:border-dark-border bg-gray-50/30 dark:bg-gray-800/30 flex justify-end">
+                                <button onclick="processBulk()" class="bg-gray-900 dark:bg-white dark:text-gray-900 hover:bg-black dark:hover:bg-gray-200 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2 group w-full justify-center">
+                                    <span id="bulk-btn-text">Start Matching</span>
+                                    <i data-lucide="play" class="w-3 h-3 group-hover:text-green-400 dark:group-hover:text-green-600 transition-colors" id="play-icon"></i>
+                                    <div id="bulk-loader" class="loader hidden"></div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Output Section -->
+                        <div class="w-2/3 flex flex-col gap-0 shadow-sm rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface transition-colors">
+                             <div class="bg-gray-50/50 dark:bg-gray-800/50 p-4 border-b border-gray-200 dark:border-dark-border flex justify-between items-center">
+                                <h3 class="font-bold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide flex items-center gap-2">
+                                    <i data-lucide="table-2" class="w-4 h-4 text-gray-400"></i> Results
+                                </h3>
+                                <button onclick="exportBulk()" class="text-gray-600 dark:text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border border-gray-200 dark:border-dark-border hover:border-green-200 bg-white dark:bg-dark-surface shadow-sm">
+                                    <i data-lucide="file-spreadsheet" class="w-3 h-3"></i> Export Report
+                                </button>
+                            </div>
+                            <div class="flex-1 overflow-y-auto custom-scroll relative bg-white dark:bg-dark-surface">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-dark-border sticky top-0 z-10 backdrop-blur-sm">
+                                        <tr>
+                                            <th class="p-3 text-[10px] font-bold text-gray-400 uppercase w-1/3 pl-5">Original Query</th>
+                                            <th class="p-3 text-[10px] font-bold text-gray-400 uppercase w-28">Matched Code</th>
+                                            <th class="p-3 text-[10px] font-bold text-gray-400 uppercase">Matched Description</th>
+                                            <th class="p-3 text-[10px] font-bold text-gray-400 uppercase w-16 text-center">Conf.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bulk-table-body" class="divide-y divide-gray-50 dark:divide-gray-800 text-xs">
+                                        <!-- Rows -->
+                                    </tbody>
+                                </table>
+                                <div id="bulk-empty" class="absolute inset-0 flex items-center justify-center text-gray-300 dark:text-gray-600 pointer-events-none">
+                                    <p>Results will appear here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-8 right-8 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-5 py-3 rounded-xl shadow-2xl text-sm font-medium transform translate-y-32 transition-all duration-300 z-50 flex items-center gap-3 border border-gray-800 dark:border-gray-200">
+        <i data-lucide="check-circle-2" class="w-5 h-5 text-green-400 dark:text-green-600"></i>
+        <span id="toast-msg">Notification</span>
+    </div>
 
     <script>
-        // --- State Management ---
+        // --- Global State ---
         let inventoryData = [];
-        let filteredData = []; 
-        let recentSearches = [];
+        let filteredInventory = [];
+        let bulkResults = [];
+        let activeFilters = { diameters: new Set(), locations: new Set(), packings: new Set() };
 
-        const uploadSection = document.getElementById('upload-section');
-        const dataSection = document.getElementById('data-section');
-        const fileInput = document.getElementById('file-input');
-        const searchInput = document.getElementById('search-input');
-        const tableBody = document.getElementById('table-body');
-        const resultCount = document.getElementById('result-count');
-        const emptyState = document.getElementById('empty-state');
-        const toastContainer = document.getElementById('toast-container');
-        const analysisContainer = document.getElementById('analysis-container');
-        const queryFeedback = document.getElementById('query-feedback');
-        const memoryBadge = document.getElementById('memory-badge');
-        const historyContainer = document.getElementById('history-container');
-
-        // --- Initialization ---
+        // --- Core Functions ---
+        
         window.addEventListener('load', () => {
-            loadFromStorage();
             lucide.createIcons();
+            loadData();
+            // Check system preference for theme
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
         });
 
-        // --- Event Listeners ---
-        
-        // Drag & Drop
-        uploadSection.addEventListener('dragover', (e) => {
+        // Toggle Theme
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+
+        // --- MASTER FILE UPLOAD ---
+        const fileInput = document.getElementById('file-input');
+        fileInput.addEventListener('change', e => {
+            if(e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-red-400', 'bg-red-50', 'dark:bg-red-900/20', 'scale-[1.02]'); });
+        dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('border-red-400', 'bg-red-50', 'dark:bg-red-900/20', 'scale-[1.02]'); });
+        dropZone.addEventListener('drop', e => {
             e.preventDefault();
-            uploadSection.classList.add('drag-active');
+            dropZone.classList.remove('border-red-400', 'bg-red-50', 'dark:bg-red-900/20', 'scale-[1.02]');
+            if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
         });
-
-        uploadSection.addEventListener('dragleave', () => {
-            uploadSection.classList.remove('drag-active');
-        });
-
-        uploadSection.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadSection.classList.remove('drag-active');
-            if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length) {
-                handleFile(e.target.files[0]);
-            }
-        });
-
-        // Search Input
-        searchInput.addEventListener('input', (e) => {
-            renderTable(e.target.value);
-        });
-        
-        // History Saving
-        searchInput.addEventListener('keydown', (e) => {
-            if(e.key === 'Enter') {
-                addToHistory(e.target.value);
-            }
-        });
-
-        // --- ADVANCED ALGORITHM: HELPER FUNCTIONS ---
-
-        // 1. Levenshtein Distance (Typo Tolerance)
-        function levenshtein(a, b) {
-            if (a.length === 0) return b.length;
-            if (b.length === 0) return a.length;
-            const matrix = [];
-            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-            for (let i = 1; i <= b.length; i++) {
-                for (let j = 1; j <= a.length; j++) {
-                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                        matrix[i][j] = matrix[i - 1][j - 1];
-                    } else {
-                        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
-                    }
-                }
-            }
-            return matrix[b.length][a.length];
-        }
-
-        // 2. Dimension Extractor (The Core Logic for Welding Rods)
-        function extractDimensions(str) {
-            if (!str) return [];
-            const text = str.toLowerCase();
-            const dimensions = [];
-            
-            // Pattern A: "3.15 x 350", "3.15x350", "3.20*350"
-            // Captures: [Group 1: Diameter] [Group 2: Length]
-            const dimRegex = /(\d+\.?\d*)\s*[xX*]\s*(\d+)/g;
-            let match;
-            while ((match = dimRegex.exec(text)) !== null) {
-                dimensions.push({ type: 'rod', d1: parseFloat(match[1]), d2: parseFloat(match[2]), raw: match[0] });
-            }
-
-            // Pattern B: "1.60 mm", "1.6mm", "4.0 mm"
-            const mmRegex = /(\d+\.?\d*)\s*mm\b/g;
-            while ((match = mmRegex.exec(text)) !== null) {
-                // Avoid duplicates if already caught by Pattern A (Pattern A is more specific)
-                const val = parseFloat(match[1]);
-                // Heuristic: If we already have a dimension starting with this val, assume Pattern A caught it
-                if(!dimensions.some(d => d.d1 === val)) {
-                     dimensions.push({ type: 'single', d1: val, raw: match[0] });
-                }
-            }
-            return dimensions;
-        }
-
-        // 3. Weight Extractor
-        function extractWeights(str) {
-            if (!str) return [];
-            const weights = [];
-            const regex = /(\d+(\.\d+)?)\s*(?:kgs?|kg|lbs?)\b/gi;
-            let match;
-            while ((match = regex.exec(str)) !== null) {
-                weights.push(parseFloat(match[1]));
-            }
-            return weights;
-        }
-
-        const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9.]/g, "");
-
-
-        // --- File Handling ---
 
         function handleFile(file) {
             const reader = new FileReader();
-
-            reader.onload = (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-                if (jsonData.length > 0) {
-                    // Pre-calculate expensive things
-                    inventoryData = jsonData.map(item => {
-                        const fullText = `${item['Item Code']} ${item['Description']} ${item['Location']}`;
-                        return {
-                            ...item,
-                            _fullTextNorm: normalize(fullText),
-                            _words: normalize(fullText).split(' '),
-                            _dimensions: extractDimensions(item['Description']), // Extract rod sizes
-                            _weights: extractWeights(item['Description'])
-                        };
-                    });
-                    
-                    saveToStorage(inventoryData);
-                    filteredData = inventoryData;
-                    showDataUI();
-                    renderTable();
-                } else {
-                    alert("File is empty.");
-                }
+            reader.onload = e => {
+                const workbook = XLSX.read(e.target.result, { type: 'array' });
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+                processInventory(json);
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // --- Persistence ---
-        function saveToStorage(data) {
-            try {
-                localStorage.setItem('dayita_inventory_pro', JSON.stringify(data));
-                memoryBadge.classList.remove('hidden');
-                showToast("Data saved to memory.");
-            } catch (e) {
-                console.error("Storage failed", e);
-                showToast("File too large for auto-save.");
-            }
-        }
-
-        function loadFromStorage() {
-            try {
-                const storedData = localStorage.getItem('dayita_inventory_pro');
-                if (storedData) {
-                    inventoryData = JSON.parse(storedData);
-                    if (inventoryData.length > 0) {
-                        filteredData = inventoryData;
-                        showDataUI();
-                        renderTable();
-                        memoryBadge.classList.remove('hidden');
-                        showToast("Database loaded.");
-                    }
-                }
-                const storedHistory = localStorage.getItem('dayita_history');
-                if(storedHistory) {
-                    recentSearches = JSON.parse(storedHistory);
-                    renderHistory();
-                }
-            } catch (e) {
-                console.error("Load failed", e);
-            }
-        }
-
-        function clearStorageAndReset() {
-            if(confirm("Clear database?")) {
-                localStorage.removeItem('dayita_inventory_pro');
-                localStorage.removeItem('dayita_history');
-                recentSearches = [];
-                resetApp();
-            }
-        }
-
-        function showDataUI() {
-            uploadSection.classList.add('hidden');
-            dataSection.classList.remove('hidden');
-            searchInput.focus();
-        }
-
-        function resetApp() {
-            inventoryData = [];
-            filteredData = [];
-            fileInput.value = '';
-            searchInput.value = '';
-            uploadSection.classList.remove('hidden');
-            dataSection.classList.add('hidden');
-            analysisContainer.classList.add('hidden');
-            memoryBadge.classList.add('hidden');
-        }
-
-        // --- History Logic ---
-        function addToHistory(term) {
-            if(!term || term.trim().length < 2) return;
-            const clean = term.trim();
-            recentSearches = recentSearches.filter(s => s !== clean);
-            recentSearches.unshift(clean);
-            if(recentSearches.length > 5) recentSearches.pop();
-            localStorage.setItem('dayita_history', JSON.stringify(recentSearches));
-            renderHistory();
-        }
-
-        function renderHistory() {
-            if(recentSearches.length === 0) {
-                historyContainer.classList.add('hidden');
-                return;
-            }
-            historyContainer.classList.remove('hidden');
-            const label = '<span class="text-xs font-bold text-gray-400 uppercase tracking-wide self-center mr-1">Recent:</span>';
-            const chips = recentSearches.map(term => 
-                `<button onclick="setSearch('${term}')" class="px-3 py-1 bg-gray-200 hover:bg-red-100 hover:text-red-700 text-xs rounded-full transition-colors text-gray-600 font-medium">${term}</button>`
-            ).join('');
-            historyContainer.innerHTML = label + chips;
-        }
-
-        function setSearch(term) {
-            searchInput.value = term;
-            renderTable(term);
-            searchInput.focus();
-        }
-
-        // --- CORE SEARCH ALGORITHM ---
-        function renderTable(searchTerm = "") {
-            tableBody.innerHTML = "";
+        function processInventory(json) {
+            if(!json || json.length === 0) return alert("Empty file");
             
-            // 1. Parse the Query
-            const rawTerms = searchTerm.toLowerCase().split(/[\s,]+/).filter(t => t.length > 0);
-            
-            // Extract special features from Query
-            const queryDimensions = extractDimensions(searchTerm);
-            const queryWeights = extractWeights(searchTerm);
-            
-            // If query is empty, show everything
-            if (rawTerms.length === 0) {
-                filteredData = inventoryData;
-                analysisContainer.classList.add('hidden');
-            } else {
-                // Scoring Phase
-                const scoredData = inventoryData.map(item => {
-                    let score = 0;
-                    
-                    // A. Dimension Match (Highest Priority: +30)
-                    // Does the item have "3.15 x 350" matching the query "3.15 350"?
-                    if(queryDimensions.length > 0 && item._dimensions.length > 0) {
-                         // Check exact rod matches (d1 and d2)
-                         for(let qd of queryDimensions) {
-                             if(qd.type === 'rod') {
-                                 // Look for exact match in item dimensions
-                                 const hasMatch = item._dimensions.some(id => id.type === 'rod' && id.d1 === qd.d1 && id.d2 === qd.d2);
-                                 if(hasMatch) score += 30;
-                             } else if (qd.type === 'single') {
-                                 const hasMatch = item._dimensions.some(id => id.d1 === qd.d1);
-                                 if(hasMatch) score += 20;
-                             }
-                         }
-                    } else if (queryDimensions.length > 0 && item._dimensions.length === 0) {
-                        // Query asks for dimensions, item has none -> unlikely match
-                        score -= 5;
-                    }
-
-                    // B. Weight Match (+20)
-                    if(queryWeights.length > 0) {
-                        const hasWeightMatch = queryWeights.some(qw => 
-                            item._weights.some(iw => Math.abs(iw - qw) < 0.05)
-                        );
-                        if(hasWeightMatch) score += 20;
-                    }
-
-                    // C. Text & Fuzzy Matching
-                    rawTerms.forEach(term => {
-                        const cleanTerm = normalize(term);
-                        // Skip terms that were already handled by dimension logic (e.g. "350" or "3.15") to avoid double counting or misses
-                        // Actually, keep them but give lower score, dimension logic handles the "structure" boost
-                        
-                        // Exact match in normalized string
-                        if (item._fullTextNorm.includes(cleanTerm)) {
-                            score += 10;
-                        } 
-                        // Fuzzy Match (only for non-numbers)
-                        else if (isNaN(parseFloat(cleanTerm)) && cleanTerm.length > 3) {
-                            for(let word of item._words) {
-                                if(word.length < 3 || !isNaN(parseFloat(word))) continue;
-                                const dist = levenshtein(cleanTerm, word);
-                                const allowedErrors = cleanTerm.length > 6 ? 2 : 1;
-                                if(dist <= allowedErrors) {
-                                    score += 5;
-                                    break; // Only one fuzzy match per term needed
-                                }
-                            }
-                        }
-                    });
-
-                    return { ...item, _score: score };
-                });
-
-                filteredData = scoredData.filter(item => item._score > 0);
-                filteredData.sort((a, b) => b._score - a._score);
-                updateQueryAnalysis(rawTerms, filteredData[0], queryDimensions);
-            }
-
-            resultCount.textContent = filteredData.length;
-            if (filteredData.length === 0) emptyState.classList.remove('hidden');
-            else emptyState.classList.add('hidden');
-
-            const displayLimit = 50;
-            
-            filteredData.slice(0, displayLimit).forEach((item, index) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-red-50 transition-colors group border-b border-gray-100 last:border-0 cursor-pointer";
-                tr.onclick = () => copyToClipboard(item['Item Code']);
+            inventoryData = json.map(item => {
+                const desc = (item['Description'] || "").trim();
+                const code = (item['Item Code'] || "").trim();
+                const loc = (item['Location'] || "").trim();
                 
-                const itemCode = item['Item Code'] || '-';
-                const score = item._score ? `<span class="bg-red-100 text-[#d32f2f] px-2 py-0.5 rounded-full text-xs font-bold">${item._score}</span>` : '-';
+                const brand = desc.split(' ')[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
+                const dims = extractDimensions(desc);
+                const diameter = dims.find(d => d.type === 'single' || d.type === 'rod')?.d1 || null;
+                const weights = extractWeights(desc);
+                const packings = extractPacking(desc);
+                const isExp = desc.toUpperCase().includes("(EXP)");
                 
-                tr.innerHTML = `
-                    <td class="p-4 text-center align-middle">${score}</td>
-                    <td class="p-4 align-middle">
-                        <span class="font-mono text-sm font-bold text-[#d32f2f] bg-red-50 px-2 py-1 rounded block w-fit">${itemCode}</span>
-                    </td>
-                    <td class="p-4 font-medium text-gray-800 align-middle text-sm leading-relaxed">${item['Description'] || '-'}</td>
-                    <td class="p-4 align-middle">
-                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
-                            ${item['Location'] || '-'}
-                        </span>
-                    </td>
-                `;
-                tableBody.appendChild(tr);
+                // NEW: Create a compressed search string (remove spaces) for code matching
+                // e.g. "F 70 S6" becomes "f70s6"
+                const compressedStr = normalize(`${code} ${desc} ${loc}`).replace(/\s/g, '');
+
+                return {
+                    ...item,
+                    _searchStr: normalize(`${code} ${desc} ${loc}`),
+                    _compressedStr: compressedStr,
+                    _brand: brand,
+                    _diameter: diameter ? diameter.toFixed(2) : "Other",
+                    _location: loc || "Unknown",
+                    _dims: dims,
+                    _weights: weights,
+                    _packings: packings,
+                    _isExp: isExp
+                };
             });
+
+            saveData();
+            initApp();
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem('dayita_db', JSON.stringify(inventoryData));
+                showToast("Database Updated Successfully");
+            } catch(e) { showToast("File too large. Session mode only."); }
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('dayita_db');
+            if(saved) {
+                inventoryData = JSON.parse(saved);
+                initApp();
+            }
+        }
+
+        function clearAllData() {
+            if(confirm("Factory Reset: Clear all data?")) {
+                localStorage.removeItem('dayita_db');
+                location.reload();
+            }
+        }
+
+        function initApp() {
+            if(inventoryData.length === 0) return;
             
+            document.getElementById('upload-overlay').classList.add('hidden');
+            document.getElementById('app-view').classList.remove('hidden');
+            document.getElementById('sidebar').classList.remove('hidden');
+            
+            document.getElementById('item-count-display').textContent = `${inventoryData.length.toLocaleString()} Items`;
+            document.getElementById('file-status').classList.remove('hidden');
+            
+            generateFilters();
+            applyFilters();
+            
+            switchTab('search');
+        }
+
+        // --- QUERY FILE UPLOAD (FOR BULK) ---
+        const bulkFileInput = document.getElementById('bulk-file-input');
+        bulkFileInput.addEventListener('change', e => {
+            if(e.target.files.length) handleBulkFile(e.target.files[0]);
+        });
+
+        // Drag Drop for Bulk
+        const bulkDropZone = document.getElementById('bulk-drop-zone');
+        const bulkOverlay = document.getElementById('bulk-drop-overlay');
+        
+        bulkDropZone.addEventListener('dragover', e => { e.preventDefault(); bulkOverlay.classList.remove('opacity-0'); });
+        bulkDropZone.addEventListener('dragleave', e => { e.preventDefault(); bulkOverlay.classList.add('opacity-0'); });
+        bulkDropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            bulkOverlay.classList.add('opacity-0');
+            if(e.dataTransfer.files.length) handleBulkFile(e.dataTransfer.files[0]);
+        });
+
+        function handleBulkFile(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const workbook = XLSX.read(e.target.result, { type: 'array' });
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 }); // Read as array of arrays
+                
+                // Convert array of arrays to lines of text
+                const lines = json.map(row => row.join(" ")).join("\n");
+                document.getElementById('bulk-input').value = lines;
+                showToast("Query File Loaded");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- Filter System ---
+        function generateFilters() {
+            const counts = { diameters: {}, locations: {}, packings: {} };
+            
+            inventoryData.forEach(item => {
+                if(item._diameter) counts.diameters[item._diameter] = (counts.diameters[item._diameter] || 0) + 1;
+                if(item._location) counts.locations[item._location] = (counts.locations[item._location] || 0) + 1;
+                
+                // Packing
+                item._packings.forEach(p => {
+                    const label = p.toUpperCase();
+                    counts.packings[label] = (counts.packings[label] || 0) + 1;
+                });
+            });
+
+            const container = document.getElementById('filters-container');
+            container.innerHTML = ""; // Clear existing
+
+            // Updated Filter Order
+            renderFilterSection('Diameter', counts.diameters, 'diameters');
+            renderFilterSection('Packing Type', counts.packings, 'packings');
+            renderFilterSection('Location', counts.locations, 'locations');
+        }
+
+        function renderFilterSection(title, data, type) {
+            const container = document.getElementById('filters-container');
+            let keys = Object.keys(data);
+            if(type === 'diameters') keys.sort((a,b) => parseFloat(a) - parseFloat(b));
+            else keys.sort();
+
+            const sectionId = `filter-${type}`;
+            const iconId = `icon-${type}`;
+
+            let html = `
+                <div class="border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <button onclick="toggleSection('${type}')" class="w-full py-3 px-1 flex items-center justify-between group focus:outline-none">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-red-500 transition-colors">${title}</span>
+                        <i data-lucide="chevron-down" id="${iconId}" class="w-3 h-3 text-gray-400 transition-transform"></i>
+                    </button>
+                    <div id="${sectionId}" class="hidden pb-4 space-y-0.5 animate-fade-in">
+            `;
+            
+            keys.forEach(key => {
+                if(!key || key === 'undefined') return;
+                html += `
+                    <label class="flex items-center gap-3 cursor-pointer group p-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors checkbox-wrapper">
+                        <input type="checkbox" class="hidden" onchange="toggleFilter('${type}', '${key}')">
+                        <div class="w-4 h-4 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 flex items-center justify-center transition-all group-hover:border-red-300 shadow-sm">
+                            <i data-lucide="check" class="w-3 h-3 text-white opacity-0 transition-opacity"></i>
+                        </div>
+                        <span class="text-xs text-gray-600 dark:text-gray-300 flex-1 truncate font-medium group-hover:text-gray-900 dark:group-hover:text-white">${key}</span>
+                        <span class="text-[9px] bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 px-1.5 py-0.5 rounded-full font-mono group-hover:bg-gray-200 dark:group-hover:bg-gray-600">${data[key]}</span>
+                    </label>
+                `;
+            });
+            html += `</div></div>`;
+            
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+            container.appendChild(wrapper);
             lucide.createIcons();
         }
 
-        // --- Visual Analysis ---
-        function updateQueryAnalysis(terms, topResult, queryDims) {
-            if (!topResult) {
-                analysisContainer.classList.add('hidden');
-                return;
-            }
-            analysisContainer.classList.remove('hidden');
-            
-            const fullTargetString = topResult._fullTextNorm;
-            const topWords = topResult._words;
-            const itemDims = topResult._dimensions || [];
-            let html = "";
-
-            terms.forEach(term => {
-                const cleanTerm = normalize(term);
-                let status = "ignored";
-
-                // Check exact
-                if (cleanTerm.length > 0 && fullTargetString.includes(cleanTerm)) {
-                    status = "matched";
-                }
-                
-                // Check if this term is part of a Matched Dimension
-                // e.g. term "350" matches because item has {d1:3.15, d2:350}
-                if(status !== 'matched' || status === 'matched') { // Prioritize highlighting it as a Dimension
-                     const termVal = parseFloat(cleanTerm);
-                     if(!isNaN(termVal)) {
-                         const isDimMatch = itemDims.some(d => d.d1 === termVal || d.d2 === termVal);
-                         if(isDimMatch) status = "dim";
-                     }
-                }
-
-                // Check Fuzzy
-                if(status === 'ignored' && isNaN(parseFloat(cleanTerm)) && cleanTerm.length > 3) {
-                     for(let word of topWords) {
-                        if(word.length < 3 || !isNaN(parseFloat(word))) continue;
-                        const dist = levenshtein(cleanTerm, word);
-                        const allowedErrors = cleanTerm.length > 6 ? 2 : 1;
-                        if(dist <= allowedErrors) {
-                            status = "fuzzy";
-                            break;
-                        }
-                    }
-                }
-
-                if (status === "dim") html += `<span class="dim-term mx-1" title="Matched Dimension">${term}</span>`;
-                else if (status === "matched") html += `<span class="matched-term mx-1">${term}</span>`;
-                else if (status === "fuzzy") html += `<span class="fuzzy-term mx-1" title="Typo detected">${term}</span>`;
-                else html += `<span class="ignored-term mx-1">${term}</span>`;
-            });
-
-            queryFeedback.innerHTML = html;
+        function toggleSection(type) {
+            const section = document.getElementById(`filter-${type}`);
+            const icon = document.getElementById(`icon-${type}`);
+            section.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
         }
 
-        function downloadResults() {
-            if (filteredData.length === 0) return alert("No data to export!");
-            const cleanData = filteredData.map(item => ({
-                "Item Code": item['Item Code'],
-                "Description": item['Description'],
-                "Location": item['Location']
+        function toggleFilter(type, value) {
+            const set = activeFilters[type];
+            if(set.has(value)) set.delete(value); else set.add(value);
+            applyFilters();
+        }
+
+        function resetFilters() {
+            activeFilters = { diameters: new Set(), locations: new Set(), packings: new Set() };
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            applyFilters();
+        }
+
+        function applyFilters() {
+            filteredInventory = inventoryData.filter(item => {
+                // Diameter
+                if(activeFilters.diameters.size > 0 && !activeFilters.diameters.has(item._diameter)) return false;
+                
+                // Location
+                if(activeFilters.locations.size > 0 && !activeFilters.locations.has(item._location)) return false;
+                
+                // Packing
+                if(activeFilters.packings.size > 0) {
+                    // Item must have AT LEAST ONE of the selected packings
+                    // Map item packings to UpperCase for comparison
+                    const itemPacks = item._packings.map(p => p.toUpperCase());
+                    const hasMatch = itemPacks.some(p => activeFilters.packings.has(p));
+                    if(!hasMatch) return false;
+                }
+
+                return true;
+            });
+            runSearch(document.getElementById('search-input').value);
+        }
+
+        // --- Search System ---
+        document.getElementById('search-input').addEventListener('input', e => runSearch(e.target.value));
+
+        function runSearch(query) {
+            const tbody = document.getElementById('search-table-body');
+            const empty = document.getElementById('search-empty');
+            const count = document.getElementById('search-count');
+            const analysisBar = document.getElementById('analysis-bar');
+            
+            tbody.innerHTML = '';
+            
+            const queryInfo = parseQuery(query);
+            let results = [];
+
+            if (!queryInfo.hasTerms) {
+                results = filteredInventory.map(item => ({ item, score: 0 }));
+                analysisBar.classList.add('hidden'); 
+            } else {
+                results = filteredInventory.map(item => ({ 
+                    item, 
+                    score: calculateScore(item, queryInfo) 
+                })).filter(r => r.score > 0).sort((a,b) => b.score - a.score);
+                
+                // Update Analysis Bar
+                updateAnalysisUI(queryInfo, results[0]?.item);
+            }
+
+            count.textContent = results.length.toLocaleString();
+            
+            if(results.length === 0) {
+                empty.classList.remove('hidden');
+                if(queryInfo.hasTerms) updateAnalysisUI(queryInfo, null); 
+            } else {
+                empty.classList.add('hidden');
+                results.slice(0, 50).forEach(({ item, score }) => {
+                    const row = document.createElement('tr');
+                    row.className = 'group hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors border-b border-gray-50 dark:border-gray-800';
+                    
+                    const scoreColor = score > 30 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : (score > 15 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400');
+                    
+                    row.innerHTML = `
+                        <td class="p-3 text-center">
+                            <span class="${scoreColor} font-bold px-2 py-0.5 rounded text-[10px] font-mono">${score > 0 ? score : '-'}</span>
+                        </td>
+                        <td class="p-3">
+                            <span class="font-mono text-xs font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-2 py-1 rounded-md shadow-sm group-hover:border-red-200 dark:group-hover:border-red-800 group-hover:text-red-700 dark:group-hover:text-red-400 transition-colors">${item['Item Code']}</span>
+                        </td>
+                        <td class="p-3 text-gray-600 dark:text-gray-300 font-medium leading-normal">${item['Description']}</td>
+                        <td class="p-3">
+                            <span class="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider group-hover:bg-white dark:group-hover:bg-gray-700 group-hover:shadow-sm">${item['Location']}</span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <button onclick="copyToClipboard('${item['Item Code']}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-all">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                lucide.createIcons();
+            }
+        }
+
+        // --- Analysis Visualizer ---
+        function updateAnalysisUI(q, topResult) {
+            const bar = document.getElementById('analysis-bar');
+            const content = document.getElementById('analysis-content');
+            bar.classList.remove('hidden');
+            
+            const rawTokens = q.raw.split(' ').filter(x => x.length > 0);
+            
+            let html = '';
+            
+            // Show Export Tag if query has EXPLICIT Export request
+            if(q.hasExplicitExp) {
+                html += `<span class="badge-base badge-exp">EXPORT MODE</span>`;
+            }
+
+            rawTokens.forEach(token => {
+                let status = 'badge-skip'; // Default
+                
+                // Check exact text
+                if(topResult && topResult._searchStr.includes(token)) {
+                    status = 'badge-match';
+                }
+                // Check Compressed Match (NEW - handles "F70S6" vs "F 70 S6")
+                else if (topResult && topResult._compressedStr && topResult._compressedStr.includes(token)) {
+                    status = 'badge-comp'; // Badge for Compressed Match
+                }
+                else if (topResult && q.packings.length > 0 && q.packings.some(p => p.toLowerCase() === token)) {
+                    status = 'badge-pack';
+                }
+                else if (topResult && q.dims.length > 0 && isDimMatch(token, q.dims, topResult)) {
+                    status = 'badge-dim';
+                }
+                else if (topResult && q.weights.length > 0 && isWeightMatch(token, q.weights, topResult)) {
+                    status = 'badge-weight';
+                }
+                
+                html += `<span class="badge-base ${status}">${token}</span>`;
+            });
+            
+            content.innerHTML = html;
+        }
+
+        function isDimMatch(token, qDims, item) {
+            const val = parseFloat(token);
+            if(isNaN(val)) return false;
+            return item._dims.some(d => (d.d1 === val || d.d2 === val));
+        }
+
+        function isWeightMatch(token, qWeights, item) {
+            const val = parseFloat(token);
+            if(isNaN(val)) return false;
+            return item._weights.some(w => w === val);
+        }
+
+
+        // --- Bulk System ---
+        async function processBulk() {
+            const raw = document.getElementById('bulk-input').value;
+            if(!raw.trim()) return showToast("Please paste or upload query data first");
+
+            const btnText = document.getElementById('bulk-btn-text');
+            const loader = document.getElementById('bulk-loader');
+            const icon = document.getElementById('play-icon');
+            const tbody = document.getElementById('bulk-table-body');
+            const empty = document.getElementById('bulk-empty');
+            
+            btnText.textContent = "Processing...";
+            icon.classList.add('hidden');
+            loader.classList.remove('hidden');
+            empty.classList.add('hidden');
+            
+            await new Promise(r => setTimeout(r, 100)); // UI Breath
+
+            const lines = raw.split(/\r?\n/).filter(line => line.trim().length > 0);
+            
+            bulkResults = lines.map(line => {
+                const queryInfo = parseQuery(line);
+                let bestMatch = null;
+                let bestScore = 0;
+                
+                for(const item of inventoryData) {
+                    const score = calculateScore(item, queryInfo);
+                    if(score > bestScore) { bestScore = score; bestMatch = item; }
+                }
+                return { query: line, match: bestMatch, score: bestScore };
+            });
+
+            tbody.innerHTML = '';
+            bulkResults.forEach(res => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50';
+                
+                let confBadge = '';
+                if(res.score > 40) confBadge = '<span class="text-green-600 dark:text-green-400 font-bold">High</span>';
+                else if(res.score > 20) confBadge = '<span class="text-orange-500 font-medium">Med</span>';
+                else confBadge = '<span class="text-red-400">Low</span>';
+                
+                tr.innerHTML = `
+                    <td class="p-3 pl-5 text-gray-500 dark:text-gray-400 font-mono truncate max-w-xs" title="${res.query}">${res.query}</td>
+                    <td class="p-3">
+                         <span class="font-mono font-semibold text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-600 text-[11px]">${res.match ? res.match['Item Code'] : '-'}</span>
+                    </td>
+                    <td class="p-3 text-gray-700 dark:text-gray-300">${res.match ? res.match['Description'] : '<span class="italic text-gray-300 dark:text-gray-600">No Match</span>'}</td>
+                    <td class="p-3 text-center text-[10px] uppercase">${confBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            btnText.textContent = "Start Matching";
+            loader.classList.add('hidden');
+            icon.classList.remove('hidden');
+        }
+
+        function exportBulk() {
+            if(bulkResults.length === 0) return showToast("No results to export");
+            const data = bulkResults.map(r => ({
+                "Query": r.query,
+                "Code": r.match ? r.match['Item Code'] : "",
+                "Description": r.match ? r.match['Description'] : "No Match Found",
+                "Location": r.match ? r.match['Location'] : "",
+                "Score": r.score
             }));
-            const worksheet = XLSX.utils.json_to_sheet(cleanData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "SearchResults");
-            XLSX.writeFile(workbook, "Dayita_Export.xlsx");
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Matches");
+            XLSX.writeFile(wb, "Dayita_Report.xlsx");
+        }
+
+        // --- Algorithm Logic ---
+        function parseQuery(str) {
+            const raw = normalize(str);
+            const terms = raw.split(' ').filter(x => x.length > 0);
+            const dims = extractDimensions(str);
+            const weights = extractWeights(str);
+            const packings = extractPacking(str);
+            const hasExplicitExp = terms.some(t => t === 'exp' || t === 'export');
+            return { raw, terms, dims, weights, packings, hasExplicitExp, hasTerms: terms.length > 0 };
+        }
+
+        function calculateScore(item, q) {
+            let score = 0;
+            const itemText = item._searchStr;
+
+            // 1. Dimensions (Highest Priority)
+            if(q.dims.length > 0 && item._dims.length > 0) {
+                for(let qd of q.dims) {
+                    const match = item._dims.some(id => 
+                        (id.type === 'rod' && qd.type === 'rod' && id.d1 === qd.d1 && id.d2 === qd.d2) ||
+                        (id.type === 'single' && id.d1 === qd.d1)
+                    );
+                    if(match) score += 40;
+                }
+            }
+
+            // 2. Weights
+            if(q.weights.length > 0) {
+                if(q.weights.some(qw => item._weights.some(iw => Math.abs(iw - qw) < 0.1))) score += 20;
+            }
+
+            // 3. Text Matching
+            q.terms.forEach(term => { 
+                if(itemText.includes(term)) {
+                    score += 10; 
+                }
+                // NEW: Compressed Match Check (For "F70S6" matching "F 70 S6")
+                else if (item._compressedStr && item._compressedStr.includes(term)) {
+                    score += 40; // Extremely high confidence boost for code match
+                }
+            });
+            
+            // 4. Packing Logic
+            if(q.packings.length > 0 && item._packings.length > 0) {
+                const pMatch = q.packings.some(qp => item._packings.includes(qp));
+                if(pMatch) score += 25;
+            }
+
+            // 5. Export Logic
+            if(item._isExp) {
+                score += 5; 
+                if(q.hasExplicitExp) score += 20; 
+            }
+
+            // 6. Specialty Penalty
+            const specialTokens = ['spl', 'mod', 'h4r', 'nace', '-l'];
+            const queryHasSpecial = specialTokens.some(t => q.terms.includes(t));
+            
+            if (!queryHasSpecial) {
+                specialTokens.forEach(token => {
+                    if (item._searchStr.includes(" " + token + " ") || item._searchStr.endsWith(" " + token) || item._searchStr.startsWith(token + " ")) {
+                        score -= 10; 
+                    }
+                });
+            }
+
+            return score;
+        }
+
+        function extractDimensions(str) {
+            if (!str) return [];
+            const text = str.toLowerCase();
+            const res = [];
+            let match;
+            const rodRegex = /(\d+\.?\d*)\s*[xX*]\s*(\d+)/g;
+            while ((match = rodRegex.exec(text)) !== null) res.push({ type: 'rod', d1: parseFloat(match[1]), d2: parseFloat(match[2]) });
+            const mmRegex = /(\d+\.?\d*)\s*mm\b/g;
+            while ((match = mmRegex.exec(text)) !== null) res.push({ type: 'single', d1: parseFloat(match[1]) });
+            return res;
+        }
+
+        function extractWeights(str) {
+            if(!str) return [];
+            const res = [];
+            const regex = /(\d+(\.\d+)?)\s*(?:kgs?|kg|lbs?)\b/gi;
+            let match;
+            while((match = regex.exec(str)) !== null) res.push(parseFloat(match[1]));
+            return res;
+        }
+
+        function extractPacking(str) {
+            if(!str) return [];
+            const text = str.toLowerCase();
+            const packs = [];
+            
+            if(/\b(vp|vacuum|vac)\b/.test(text)) packs.push("vp");
+            if(/\b(reg|regular|std)\b/.test(text)) packs.push("reg");
+            if(/\b(hdpe)\b/.test(text)) packs.push("hdpe");
+            
+            return packs;
+        }
+
+        function normalize(str) { return str.toLowerCase().replace(/[^a-z0-9.]/g, " ").replace(/\s+/g, " "); }
+
+        // --- Utils ---
+        function switchTab(tab) {
+            document.getElementById('tab-search').classList.add('hidden');
+            document.getElementById('tab-bulk').classList.add('hidden');
+            document.getElementById('tab-btn-search').classList.remove('text-red-600', 'border-red-600', 'dark:text-red-400');
+            document.getElementById('tab-btn-bulk').classList.remove('text-red-600', 'border-red-600', 'dark:text-red-400');
+            
+            const inactiveClass = ['text-gray-500', 'border-transparent', 'dark:text-gray-400'];
+            document.getElementById('tab-btn-search').classList.add(...inactiveClass);
+            document.getElementById('tab-btn-bulk').classList.add(...inactiveClass);
+            
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            const btn = document.getElementById(`tab-btn-${tab}`);
+            btn.classList.remove(...inactiveClass);
+            btn.classList.add('text-red-600', 'border-red-600', 'dark:text-red-400');
         }
 
         function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => showToast(`Copied Code: ${text}`));
+            navigator.clipboard.writeText(text);
+            showToast(`Code Copied: ${text}`);
         }
-        
-        function showToast(message) {
-            const toast = document.createElement('div');
-            toast.className = "toast bg-gray-900 text-white px-4 py-2 rounded shadow-xl text-sm mb-2 flex items-center gap-2 border-l-4 border-[#d32f2f]";
-            toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-400"></i> ${message}`;
-            toastContainer.appendChild(toast);
-            lucide.createIcons();
-            setTimeout(() => toast.remove(), 2000);
+
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            el.classList.remove('translate-y-32');
+            setTimeout(() => el.classList.add('translate-y-32'), 2500);
         }
     </script>
 </body>

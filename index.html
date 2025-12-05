@@ -28,7 +28,8 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
+    <!-- IMPORTANT: Use type="text/tailwindcss" for @apply to work in CDN -->
+    <style type="text/tailwindcss">
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
         body { font-family: 'Inter', sans-serif; }
@@ -56,15 +57,29 @@
             opacity: 1;
         }
 
-        /* Analysis Badges */
-        .badge-base { @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mr-1 mb-1 inline-block; }
-        .badge-match { @apply bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800; }
-        .badge-dim   { @apply bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800; }
-        .badge-weight{ @apply bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800; }
-        .badge-pack  { @apply bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800; }
-        .badge-exp   { @apply bg-teal-100 text-teal-700 border border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800; }
-        .badge-skip  { @apply bg-gray-100 text-gray-400 border border-gray-200 line-through decoration-gray-400 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700; }
-        .badge-comp  { @apply bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800; }
+        /* Analysis Badges - Enhanced Colors */
+        .badge-base { @apply px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide mr-1.5 mb-1 inline-flex items-center gap-1 shadow-sm border; }
+        
+        /* Green for Matches (Text) */
+        .badge-match { @apply bg-green-100 text-green-800 border-green-200 dark:bg-green-500/20 dark:text-green-300 dark:border-green-500/30; }
+        
+        /* Blue for Dimensions */
+        .badge-dim   { @apply bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30; }
+        
+        /* Purple for Weight */
+        .badge-weight{ @apply bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30; }
+        
+        /* Orange for Packing */
+        .badge-pack  { @apply bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30; }
+        
+        /* Teal for Export */
+        .badge-exp   { @apply bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-500/20 dark:text-teal-300 dark:border-teal-500/30; }
+        
+        /* Gray for Ignored */
+        .badge-skip  { @apply bg-gray-100 text-gray-400 border-gray-200 line-through decoration-gray-400 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700; }
+        
+        /* Indigo for Compressed Code Match */
+        .badge-comp  { @apply bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-gray-50 text-slate-800 dark:bg-dark-bg dark:text-dark-text transition-colors duration-200">
@@ -174,9 +189,9 @@
                         </div>
 
                         <!-- Analysis Bar -->
-                        <div id="analysis-bar" class="hidden bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-2.5 flex items-center gap-2 shadow-sm animate-fade-in">
-                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 border-r border-gray-100 dark:border-dark-border">Analysis</span>
-                            <div id="analysis-content" class="flex flex-wrap gap-1 text-xs">
+                        <div id="analysis-bar" class="hidden bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-2.5 flex items-center gap-2 shadow-sm animate-fade-in min-h-[44px]">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 border-r border-gray-100 dark:border-dark-border self-center">Analysis</span>
+                            <div id="analysis-content" class="flex flex-wrap gap-1 text-xs items-center">
                                 <!-- Pills go here -->
                             </div>
                         </div>
@@ -632,34 +647,50 @@
             
             // Show Export Tag if query has EXPLICIT Export request
             if(q.hasExplicitExp) {
-                html += `<span class="badge-base badge-exp">EXPORT MODE</span>`;
+                html += `<span class="badge-base badge-exp"><i data-lucide="globe" class="w-3 h-3"></i>EXPORT</span>`;
             }
 
             rawTokens.forEach(token => {
                 let status = 'badge-skip'; // Default
                 
-                // Check exact text
+                // If matched text
                 if(topResult && topResult._searchStr.includes(token)) {
                     status = 'badge-match';
                 }
-                // Check Compressed Match (NEW - handles "F70S6" vs "F 70 S6")
-                else if (topResult && topResult._compressedStr && topResult._compressedStr.includes(token)) {
-                    status = 'badge-comp'; // Badge for Compressed Match
-                }
-                else if (topResult && q.packings.length > 0 && q.packings.some(p => p.toLowerCase() === token)) {
-                    status = 'badge-pack';
-                }
+                // If part of dim match
                 else if (topResult && q.dims.length > 0 && isDimMatch(token, q.dims, topResult)) {
                     status = 'badge-dim';
                 }
+                // If part of weight match
                 else if (topResult && q.weights.length > 0 && isWeightMatch(token, q.weights, topResult)) {
                     status = 'badge-weight';
                 }
+                // If part of pack match (e.g. VP, REG)
+                else if (topResult && q.packings.length > 0 && q.packings.some(p => p.toLowerCase() === token)) {
+                    status = 'badge-pack';
+                }
                 
-                html += `<span class="badge-base ${status}">${token}</span>`;
+                // Only show badge if NOT skipped, unless user wants to see skipped too? 
+                // The prompt says "hide junk words". So we only append if status != badge-skip
+                
+                // Special Rule for ignoring unit-only tokens in weights to avoid "KG" being a separate green badge
+                // if it's already shown in the purple weight badge
+                if(['kg','kgs','mm'].includes(token)) {
+                    // Do nothing (skip rendering standalone unit)
+                } 
+                else if(status !== 'badge-skip') {
+                    // Map status to icon
+                    let icon = 'check';
+                    if(status === 'badge-dim') icon = 'ruler';
+                    if(status === 'badge-weight') icon = 'scale';
+                    if(status === 'badge-pack') icon = 'package';
+                    
+                    html += `<span class="badge-base ${status}"><i data-lucide="${icon}" class="w-3 h-3"></i>${token.toUpperCase()}</span>`;
+                }
             });
             
             content.innerHTML = html;
+            lucide.createIcons(); 
         }
 
         function isDimMatch(token, qDims, item) {
@@ -829,9 +860,13 @@
             const res = [];
             let match;
             const rodRegex = /(\d+\.?\d*)\s*[xX*]\s*(\d+)/g;
-            while ((match = rodRegex.exec(text)) !== null) res.push({ type: 'rod', d1: parseFloat(match[1]), d2: parseFloat(match[2]) });
+            while ((match = rodRegex.exec(text)) !== null) {
+                res.push({ type: 'rod', d1: parseFloat(match[1]), d2: parseFloat(match[2]), raw: match[0] });
+            }
             const mmRegex = /(\d+\.?\d*)\s*mm\b/g;
-            while ((match = mmRegex.exec(text)) !== null) res.push({ type: 'single', d1: parseFloat(match[1]) });
+            while ((match = mmRegex.exec(text)) !== null) {
+                res.push({ type: 'single', d1: parseFloat(match[1]), raw: match[0] });
+            }
             return res;
         }
 

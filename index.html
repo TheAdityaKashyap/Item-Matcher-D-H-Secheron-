@@ -34,29 +34,51 @@
 
         body { font-family: 'Inter', sans-serif; }
         
+        /* Custom Scrollbar */
         .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
         .dark .custom-scroll::-webkit-scrollbar-thumb { background-color: #4b5563; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
 
+        /* Animations */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         
         .loader { border: 2px solid #f3f3f3; border-top: 2px solid #dc2626; border-radius: 50%; width: 16px; height: 16px; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .checkbox-wrapper input:checked + div { background-color: #dc2626; border-color: #dc2626; }
-        .checkbox-wrapper input:checked + div svg { opacity: 1; }
+        /* Custom Checkbox */
+        .checkbox-wrapper input:checked + div {
+            background-color: #dc2626;
+            border-color: #dc2626;
+        }
+        .checkbox-wrapper input:checked + div svg {
+            opacity: 1;
+        }
 
-        /* Badges */
+        /* Analysis Badges - Enhanced Colors */
         .badge-base { @apply px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide mr-1.5 mb-1 inline-flex items-center gap-1 shadow-sm border; }
+        
+        /* Green for Matches (Text) */
         .badge-match { @apply bg-green-100 text-green-800 border-green-200 dark:bg-green-500/20 dark:text-green-300 dark:border-green-500/30; }
+        
+        /* Blue for Dimensions */
         .badge-dim   { @apply bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30; }
+        
+        /* Purple for Weight */
         .badge-weight{ @apply bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30; }
+        
+        /* Orange for Packing */
         .badge-pack  { @apply bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30; }
+        
+        /* Teal for Export */
         .badge-exp   { @apply bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-500/20 dark:text-teal-300 dark:border-teal-500/30; }
+        
+        /* Gray for Ignored */
         .badge-skip  { @apply bg-gray-100 text-gray-400 border-gray-200 line-through decoration-gray-400 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700; }
+        
+        /* Indigo for Compressed Code Match */
         .badge-comp  { @apply bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30; }
     </style>
 </head>
@@ -76,6 +98,7 @@
             </div>
             
             <div class="flex items-center gap-3">
+                <!-- Theme Toggle -->
                 <button onclick="toggleTheme()" class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="Toggle Dark Mode">
                     <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
                     <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
@@ -144,9 +167,6 @@
                     <button onclick="switchTab('bulk')" id="tab-btn-bulk" class="pb-3 text-sm font-medium flex items-center gap-2 border-b-2 border-transparent transition-all hover:text-red-600 dark:hover:text-red-400 text-gray-500 dark:text-gray-400">
                         <i data-lucide="layers" class="w-4 h-4"></i> Bulk Processing
                     </button>
-                    <button onclick="switchTab('pinned')" id="tab-btn-pinned" class="pb-3 text-sm font-medium flex items-center gap-2 border-b-2 border-transparent transition-all hover:text-yellow-600 dark:hover:text-yellow-400 text-gray-500 dark:text-gray-400">
-                        <i data-lucide="star" class="w-4 h-4 fill-current"></i> Pinned <span id="pin-count" class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-1.5 rounded-full">0</span>
-                    </button>
                 </div>
 
                 <!-- Interactive Search Tab -->
@@ -161,17 +181,7 @@
                             </div>
                             <input type="text" id="search-input" placeholder="Type query... (e.g. '5.0 KG F70S6 1.60X1000')" 
                                 class="flex-1 outline-none text-gray-700 dark:text-gray-200 py-2.5 text-base bg-transparent placeholder-gray-400" autocomplete="off">
-                            
-                            <!-- Strict Mode Toggle -->
-                            <div class="flex items-center gap-2 px-3 border-r border-gray-200 dark:border-dark-border mr-2">
-                                <label class="flex items-center cursor-pointer relative">
-                                    <input type="checkbox" id="strict-mode" class="sr-only" onchange="runSearch(document.getElementById('search-input').value)">
-                                    <div class="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer-checked:bg-red-500 transition-colors toggle-bg"></div>
-                                    <div class="w-3 h-3 bg-white rounded-full absolute left-1 top-1 transition-transform toggle-dot"></div>
-                                </label>
-                                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Strict</span>
-                            </div>
-
+                            <div class="h-8 w-px bg-gray-200 dark:bg-dark-border mx-2"></div>
                             <div class="pr-4 flex items-center gap-2">
                                 <span class="text-xs font-semibold text-gray-400 uppercase">Matches</span>
                                 <span id="search-count" class="text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-md min-w-[30px] text-center">0</span>
@@ -193,11 +203,11 @@
                             <table class="w-full text-left border-collapse">
                                 <thead class="bg-gray-50/80 dark:bg-gray-800/80 border-b border-gray-200 dark:border-dark-border sticky top-0 z-10 backdrop-blur-sm">
                                     <tr>
-                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-16 text-center">Score</th>
-                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-40">Item Code</th>
+                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-20 text-center">Score</th>
+                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-48">Item Code</th>
                                         <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Description</th>
                                         <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-36">Location</th>
-                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-24 text-center">Actions</th>
+                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-20 text-center">Copy</th>
                                     </tr>
                                 </thead>
                                 <tbody id="search-table-body" class="divide-y divide-gray-50 dark:divide-gray-800 text-sm">
@@ -212,44 +222,6 @@
                                 </div>
                                 <p class="font-medium text-gray-500 dark:text-gray-400">No matches found</p>
                                 <p class="text-xs opacity-60 mt-1">Try adjusting your filters or search terms</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pinned Items Tab -->
-                <div id="tab-pinned" class="flex-1 flex flex-col overflow-hidden p-6 gap-6 hidden max-w-7xl mx-auto w-full">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-lg font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                            <i data-lucide="star" class="w-5 h-5 text-yellow-500 fill-current"></i> Pinned Items (Shortlist)
-                        </h2>
-                        <div class="flex gap-2">
-                            <button onclick="clearPinned()" class="px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-xs font-bold transition-all border border-red-200 dark:border-red-900">
-                                Clear All
-                            </button>
-                            <button onclick="exportPinned()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2">
-                                <i data-lucide="download" class="w-4 h-4"></i> Export List
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex-1 bg-white dark:bg-dark-surface rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200 dark:border-dark-border overflow-hidden flex flex-col transition-colors">
-                        <div class="overflow-y-auto flex-1 custom-scroll">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50/80 dark:bg-gray-800/80 border-b border-gray-200 dark:border-dark-border sticky top-0 z-10 backdrop-blur-sm">
-                                    <tr>
-                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-40">Item Code</th>
-                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Description</th>
-                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-36">Location</th>
-                                        <th class="p-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider w-20 text-center">Remove</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="pinned-table-body" class="divide-y divide-gray-50 dark:divide-gray-800 text-sm">
-                                    <!-- Rows -->
-                                </tbody>
-                            </table>
-                            <div id="pinned-empty" class="h-full flex flex-col items-center justify-center text-gray-400 pb-10">
-                                <p>No items pinned yet.</p>
                             </div>
                         </div>
                     </div>
@@ -340,7 +312,6 @@
         let inventoryData = [];
         let filteredInventory = [];
         let bulkResults = [];
-        let pinnedItems = [];
         let activeFilters = { diameters: new Set(), locations: new Set(), packings: new Set() };
 
         // --- Core Functions ---
@@ -366,22 +337,6 @@
                 localStorage.theme = 'dark';
             }
         }
-        
-        // Strict Mode Toggle Style
-        const strictToggle = document.getElementById('strict-mode');
-        strictToggle.addEventListener('change', (e) => {
-            const dot = e.target.parentElement.querySelector('.toggle-dot');
-            const bg = e.target.parentElement.querySelector('.toggle-bg');
-            if(e.target.checked) {
-                dot.classList.add('translate-x-4');
-                bg.classList.remove('bg-gray-200','dark:bg-gray-700');
-                bg.classList.add('bg-red-600');
-            } else {
-                dot.classList.remove('translate-x-4');
-                bg.classList.add('bg-gray-200','dark:bg-gray-700');
-                bg.classList.remove('bg-red-600');
-            }
-        });
 
         // --- MASTER FILE UPLOAD ---
         const fileInput = document.getElementById('file-input');
@@ -411,36 +366,10 @@
         function processInventory(json) {
             if(!json || json.length === 0) return alert("Empty file");
             
-            // Intelligent Column Auto-Detection
-            // We look for the first row that seems to have valid headers
-            let dataRows = json;
-            let keys = Object.keys(json[0]).map(k => k.toLowerCase());
-            
-            // Map headers
-            let colMap = { code: '', desc: '', loc: '' };
-            
-            const ALIASES = {
-                code: ['item code', 'code', 'material', 'part no', 'fgm', 'material code'],
-                desc: ['description', 'desc', 'material name', 'item name', 'product', 'material description'],
-                loc:  ['location', 'loc', 'bin', 'rack', 'store', 'storage bin']
-            };
-
-            for(let key of Object.keys(json[0])) {
-                let k = key.toLowerCase();
-                if(!colMap.code && ALIASES.code.some(a => k.includes(a))) colMap.code = key;
-                if(!colMap.desc && ALIASES.desc.some(a => k.includes(a))) colMap.desc = key;
-                if(!colMap.loc && ALIASES.loc.some(a => k.includes(a))) colMap.loc = key;
-            }
-            
-            // Fallback if not found (assume order: Code, Desc, Loc) if cols > 3
-            if(!colMap.code) colMap.code = Object.keys(json[0])[0];
-            if(!colMap.desc) colMap.desc = Object.keys(json[0])[1];
-            if(!colMap.loc) colMap.loc = Object.keys(json[0])[2];
-
             inventoryData = json.map(item => {
-                const code = (item[colMap.code] || "").toString().trim();
-                const desc = (item[colMap.desc] || "").toString().trim();
-                const loc = (item[colMap.loc] || "").toString().trim();
+                const desc = (item['Description'] || "").trim();
+                const code = (item['Item Code'] || "").trim();
+                const loc = (item['Location'] || "").trim();
                 
                 const brand = desc.split(' ')[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
                 const dims = extractDimensions(desc);
@@ -449,12 +378,11 @@
                 const packings = extractPacking(desc);
                 const isExp = desc.toUpperCase().includes("(EXP)");
                 
+                // NEW: Create a compressed search string (remove spaces) for code matching
                 const compressedStr = normalize(`${code} ${desc} ${loc}`).replace(/\s/g, '');
 
                 return {
-                    'Item Code': code,
-                    'Description': desc,
-                    'Location': loc,
+                    ...item,
                     _searchStr: normalize(`${code} ${desc} ${loc}`),
                     _compressedStr: compressedStr,
                     _brand: brand,
@@ -484,18 +412,11 @@
                 inventoryData = JSON.parse(saved);
                 initApp();
             }
-            const savedPins = localStorage.getItem('dayita_pins');
-            if(savedPins) {
-                pinnedItems = JSON.parse(savedPins);
-                updatePinCount();
-                renderPinned();
-            }
         }
 
         function clearAllData() {
             if(confirm("Factory Reset: Clear all data?")) {
                 localStorage.removeItem('dayita_db');
-                localStorage.removeItem('dayita_pins');
                 location.reload();
             }
         }
@@ -660,8 +581,6 @@
             const count = document.getElementById('search-count');
             const analysisBar = document.getElementById('analysis-bar');
             
-            const strict = document.getElementById('strict-mode').checked;
-
             tbody.innerHTML = '';
             
             const queryInfo = parseQuery(query);
@@ -673,7 +592,7 @@
             } else {
                 results = filteredInventory.map(item => ({ 
                     item, 
-                    score: calculateScore(item, queryInfo, strict) 
+                    score: calculateScore(item, queryInfo) 
                 })).filter(r => r.score > 0).sort((a,b) => b.score - a.score);
                 
                 // Update Analysis Bar
@@ -693,9 +612,6 @@
                     
                     const scoreColor = score > 30 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : (score > 15 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400');
                     
-                    const isPinned = pinnedItems.some(p => p['Item Code'] === item['Item Code']);
-                    const starClass = isPinned ? 'text-yellow-500 fill-current' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-500';
-
                     row.innerHTML = `
                         <td class="p-3 text-center">
                             <span class="${scoreColor} font-bold px-2 py-0.5 rounded text-[10px] font-mono">${score > 0 ? score : '-'}</span>
@@ -708,14 +624,9 @@
                             <span class="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider group-hover:bg-white dark:group-hover:bg-gray-700 group-hover:shadow-sm">${item['Location']}</span>
                         </td>
                         <td class="p-3 text-center">
-                            <div class="flex items-center justify-center gap-1">
-                                <button onclick="togglePin('${item['Item Code']}')" class="p-1.5 rounded-md transition-all ${starClass}">
-                                    <i data-lucide="star" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="copyToClipboard('${item['Item Code']}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-all">
-                                    <i data-lucide="copy" class="w-4 h-4"></i>
-                                </button>
-                            </div>
+                            <button onclick="copyToClipboard('${item['Item Code']}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-all">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
                         </td>
                     `;
                     tbody.appendChild(row);
@@ -746,18 +657,17 @@
                 if(topResult && topResult._searchStr.includes(token)) {
                     status = 'badge-match';
                 }
-                // Check Compressed Match (NEW - handles "F70S6" vs "F 70 S6")
-                else if (topResult && topResult._compressedStr && topResult._compressedStr.includes(token)) {
-                    status = 'badge-comp'; // Badge for Compressed Match
-                }
-                else if (topResult && q.packings.length > 0 && q.packings.some(p => p.toLowerCase() === token)) {
-                    status = 'badge-pack';
-                }
+                // If part of dim match
                 else if (topResult && q.dims.length > 0 && isDimMatch(token, q.dims, topResult)) {
                     status = 'badge-dim';
                 }
+                // If part of weight match
                 else if (topResult && q.weights.length > 0 && isWeightMatch(token, q.weights, topResult)) {
                     status = 'badge-weight';
+                }
+                // If part of pack match (e.g. VP, REG)
+                else if (topResult && q.packings.length > 0 && q.packings.some(p => p.toLowerCase() === token)) {
+                    status = 'badge-pack';
                 }
                 
                 // Only show badge if NOT skipped, unless user wants to see skipped too? 
@@ -796,89 +706,6 @@
         }
 
 
-        // --- Pinned Items System ---
-        function togglePin(code) {
-            const exists = pinnedItems.find(p => p['Item Code'] === code);
-            if(exists) {
-                pinnedItems = pinnedItems.filter(p => p['Item Code'] !== code);
-                showToast("Item Unpinned");
-            } else {
-                const item = inventoryData.find(i => i['Item Code'] === code);
-                if(item) {
-                    pinnedItems.push(item);
-                    showToast("Item Pinned to Shortlist");
-                }
-            }
-            savePins();
-            updatePinCount();
-            renderPinned();
-            // Re-render search to update star icon
-            runSearch(document.getElementById('search-input').value); 
-        }
-
-        function savePins() {
-            localStorage.setItem('dayita_pins', JSON.stringify(pinnedItems));
-        }
-
-        function updatePinCount() {
-            document.getElementById('pin-count').textContent = pinnedItems.length;
-        }
-
-        function renderPinned() {
-            const tbody = document.getElementById('pinned-table-body');
-            const empty = document.getElementById('pinned-empty');
-            
-            if(pinnedItems.length === 0) {
-                tbody.innerHTML = '';
-                empty.classList.remove('hidden');
-                return;
-            }
-            
-            empty.classList.add('hidden');
-            tbody.innerHTML = '';
-            
-            pinnedItems.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.className = 'border-b border-gray-50 dark:border-gray-800 hover:bg-yellow-50 dark:hover:bg-yellow-900/10 transition-colors';
-                tr.innerHTML = `
-                    <td class="p-4 font-mono text-xs font-bold text-gray-800 dark:text-gray-200">${item['Item Code']}</td>
-                    <td class="p-4 text-gray-600 dark:text-gray-300 text-sm">${item['Description']}</td>
-                    <td class="p-4 text-gray-500 dark:text-gray-400 text-xs font-mono uppercase">${item['Location']}</td>
-                    <td class="p-4 text-center">
-                        <button onclick="togglePin('${item['Item Code']}')" class="text-red-500 hover:text-red-700 transition-colors">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            lucide.createIcons();
-        }
-
-        function clearPinned() {
-            if(confirm("Clear shortlist?")) {
-                pinnedItems = [];
-                savePins();
-                updatePinCount();
-                renderPinned();
-                runSearch(document.getElementById('search-input').value);
-            }
-        }
-
-        function exportPinned() {
-            if(pinnedItems.length === 0) return showToast("Nothing to export");
-            const data = pinnedItems.map(item => ({
-                "Item Code": item['Item Code'],
-                "Description": item['Description'],
-                "Location": item['Location']
-            }));
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Shortlist");
-            XLSX.writeFile(wb, "Dayita_Shortlist.xlsx");
-        }
-
-
         // --- Bulk System ---
         async function processBulk() {
             const raw = document.getElementById('bulk-input').value;
@@ -905,7 +732,7 @@
                 let bestScore = 0;
                 
                 for(const item of inventoryData) {
-                    const score = calculateScore(item, queryInfo, false); // Strict mode off for bulk usually better
+                    const score = calculateScore(item, queryInfo);
                     if(score > bestScore) { bestScore = score; bestMatch = item; }
                 }
                 return { query: line, match: bestMatch, score: bestScore };
@@ -963,7 +790,7 @@
             return { raw, terms, dims, weights, packings, hasExplicitExp, hasTerms: terms.length > 0 };
         }
 
-        function calculateScore(item, q, strictMode = false) {
+        function calculateScore(item, q) {
             let score = 0;
             const itemText = item._searchStr;
 
@@ -1012,18 +839,16 @@
                 if(q.hasExplicitExp) score += 20; 
             }
 
-            // 6. Specialty Penalty (Only if NOT in Strict Mode - strict mode assumes user knows what they typed)
-            if(!strictMode) {
-                const specialTokens = ['spl', 'mod', 'h4r', 'nace', '-l'];
-                const queryHasSpecial = specialTokens.some(t => q.terms.includes(t));
-                
-                if (!queryHasSpecial) {
-                    specialTokens.forEach(token => {
-                        if (item._searchStr.includes(" " + token + " ") || item._searchStr.endsWith(" " + token) || item._searchStr.startsWith(token + " ")) {
-                            score -= 10; 
-                        }
-                    });
-                }
+            // 6. Specialty Penalty
+            const specialTokens = ['spl', 'mod', 'h4r', 'nace', '-l'];
+            const queryHasSpecial = specialTokens.some(t => q.terms.includes(t));
+            
+            if (!queryHasSpecial) {
+                specialTokens.forEach(token => {
+                    if (item._searchStr.includes(" " + token + " ") || item._searchStr.endsWith(" " + token) || item._searchStr.startsWith(token + " ")) {
+                        score -= 10; 
+                    }
+                });
             }
 
             return score;
@@ -1072,17 +897,16 @@
         function switchTab(tab) {
             document.getElementById('tab-search').classList.add('hidden');
             document.getElementById('tab-bulk').classList.add('hidden');
-            document.getElementById('tab-pinned').classList.add('hidden');
+            document.getElementById('tab-btn-search').classList.remove('text-red-600', 'border-red-600', 'dark:text-red-400');
+            document.getElementById('tab-btn-bulk').classList.remove('text-red-600', 'border-red-600', 'dark:text-red-400');
             
-            ['search', 'bulk', 'pinned'].forEach(t => {
-                const btn = document.getElementById(`tab-btn-${t}`);
-                btn.classList.remove('text-red-600', 'border-red-600', 'dark:text-red-400');
-                btn.classList.add('text-gray-500', 'border-transparent', 'dark:text-gray-400');
-            });
+            const inactiveClass = ['text-gray-500', 'border-transparent', 'dark:text-gray-400'];
+            document.getElementById('tab-btn-search').classList.add(...inactiveClass);
+            document.getElementById('tab-btn-bulk').classList.add(...inactiveClass);
             
             document.getElementById(`tab-${tab}`).classList.remove('hidden');
             const btn = document.getElementById(`tab-btn-${tab}`);
-            btn.classList.remove('text-gray-500', 'border-transparent', 'dark:text-gray-400');
+            btn.classList.remove(...inactiveClass);
             btn.classList.add('text-red-600', 'border-red-600', 'dark:text-red-400');
         }
 

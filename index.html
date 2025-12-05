@@ -364,7 +364,6 @@
                 const isExp = desc.toUpperCase().includes("(EXP)");
                 
                 // NEW: Create a compressed search string (remove spaces) for code matching
-                // e.g. "F 70 S6" becomes "f70s6"
                 const compressedStr = normalize(`${code} ${desc} ${loc}`).replace(/\s/g, '');
 
                 return {
@@ -445,9 +444,8 @@
             const reader = new FileReader();
             reader.onload = e => {
                 const workbook = XLSX.read(e.target.result, { type: 'array' });
-                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 }); // Read as array of arrays
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 }); 
                 
-                // Convert array of arrays to lines of text
                 const lines = json.map(row => row.join(" ")).join("\n");
                 document.getElementById('bulk-input').value = lines;
                 showToast("Query File Loaded");
@@ -781,10 +779,16 @@
                 if(q.weights.some(qw => item._weights.some(iw => Math.abs(iw - qw) < 0.1))) score += 20;
             }
 
-            // 3. Text Matching
+            // 3. Text Matching (UPDATED: Priority for Whole Word Matches)
             q.terms.forEach(term => { 
-                if(itemText.includes(term)) {
-                    score += 10; 
+                // Check Whole Word (High Priority)
+                const regex = new RegExp(`\\b${term}\\b`, 'i');
+                if(regex.test(itemText)) {
+                    score += 30; // Boost whole word matches (like "602")
+                }
+                // Check Substring (Low Priority)
+                else if(itemText.includes(term)) {
+                    score += 2; // Reduced from 10 to avoid noise matching IDs like 0026020
                 }
                 // NEW: Compressed Match Check (For "F70S6" matching "F 70 S6")
                 else if (item._compressedStr && item._compressedStr.includes(term)) {
